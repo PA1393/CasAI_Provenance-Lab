@@ -1,0 +1,25 @@
+{
+  "name": "casai-provenance-lab",
+  "private": true,
+  "packageManager": "bun@1.3.9",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "bun run dev:web",
+    "dev:api": "python -m uvicorn app.main:app --reload --port 8000",
+    "dev:web": "bun run --cwd apps/web dev",
+    "check:api": "bun run lint:api && bun run test:api",
+    "check:web": "bun run --cwd apps/web typecheck && bun run --cwd apps/web lint && bun run --cwd apps/web build",
+    "lint": "turbo run lint",
+    "lint:api": "python -m ruff check apps/api",
+    "test:api": "python -m pytest -c apps/api/pyproject.toml apps/api/tests",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.2",
+    "typescript": "^5.9.3"
+  }
+}
