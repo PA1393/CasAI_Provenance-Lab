@@ -1,3 +1,6 @@
+# Defines what a single provenance event looks like when the API sends it back — the fields and their types.
+# The list of possible event types isn't decided yet; this is just a starting point.
+
 from pydantic import BaseModel
 
 

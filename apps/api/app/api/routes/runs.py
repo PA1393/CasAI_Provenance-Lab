@@ -1,3 +1,6 @@
+# Handles GET /api/v1/runs — returns a list of runs. Data is fake/mock for now.
+# Data shape is in schemas/runs.py; the data itself comes from modules/runs/service.py.
+
 from fastapi import APIRouter
 
 from app.modules.runs.service import list_runs

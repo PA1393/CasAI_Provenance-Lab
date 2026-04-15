@@ -1,3 +1,6 @@
+# Defines what a "run" looks like when the API sends it back — the fields and their types.
+# These field names are a starting point and will likely change as the run workflow gets built out.
+
 from pydantic import BaseModel
 
 

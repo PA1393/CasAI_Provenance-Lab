@@ -1,3 +1,6 @@
+# Defines what a "research object" looks like when the API sends it back — the fields and their types.
+# The metadata and hash fields are rough placeholders; the real structure gets decided once we know how inputs are parsed.
+
 from pydantic import BaseModel
 
 

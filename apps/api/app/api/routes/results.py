@@ -1,3 +1,6 @@
+# Handles GET /api/v1/runs/{run_id}/results — returns the outputs for a specific run. Data is fake/mock for now.
+# Data shape is in schemas/results.py; the data itself comes from modules/results/service.py.
+
 from fastapi import APIRouter
 
 from app.modules.results.service import list_results

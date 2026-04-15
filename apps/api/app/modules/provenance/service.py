@@ -1,3 +1,6 @@
+# Returns fake hardcoded events for a given run — there's no real event log yet.
+# Eventually this will record real events as a run progresses and return them in order.
+
 from datetime import UTC, datetime
 
 

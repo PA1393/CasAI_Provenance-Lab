@@ -1,3 +1,6 @@
+# Defines what a "result" looks like when the API sends it back — the fields and their types.
+# The summary field is a temporary placeholder; the real shape depends on what the simulation actually outputs.
+
 from pydantic import BaseModel
 
 

@@ -1,3 +1,6 @@
+# Returns fake hardcoded run data for now — there's no database yet, so this is just stand-in data.
+# When we add a database, list_runs() gets replaced with a real query.
+
 from datetime import UTC, datetime
 
 

@@ -1,3 +1,7 @@
+# Returns fake hardcoded research objects for now — there's no database or file parsing yet.
+# Eventually this will accept real gene sequence files, process them, and store the results.
+
+
 def list_research_objects() -> list[dict]:
     return [
         {
