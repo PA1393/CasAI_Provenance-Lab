@@ -1,23 +1,25 @@
+# Returns fake hardcoded run data for now — there's no database yet, so this is just stand-in data.
+# When we add a database, list_runs() gets replaced with a real query.
+
 from datetime import UTC, datetime
 
 
-def list_runs() -> list[dict[str, str]]:
+def list_runs() -> list[dict]:
     now = datetime.now(UTC).isoformat()
 
     return [
         {
-            "id": "run_001",
-            "name": "Base edit screen alpha",
+            "run_id": "run_001",
+            "research_object_id": "ro_001",
             "status": "draft",
-            "pipeline": "base-editing-v1",
-            "createdAt": now,
+            "mode": "base-editing",
+            "created_at": now,
         },
         {
-            "id": "run_002",
-            "name": "CRISPR comparison beta",
+            "run_id": "run_002",
+            "research_object_id": "ro_002",
             "status": "ready",
-            "pipeline": "crispr-compare-v1",
-            "createdAt": now,
+            "mode": "crispr-compare",
+            "created_at": now,
         },
     ]
-
