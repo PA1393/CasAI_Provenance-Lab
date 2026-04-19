@@ -1,10 +1,11 @@
-# Handles GET /api/v1/research-objects — returns a list of research objects. Data is fake/mock for now.
-# Data shape is in schemas/research_objects.py; the data itself comes from modules/research_objects/service.py.
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter
-
-from app.modules.research_objects.service import list_research_objects
-from app.schemas.research_objects import ResearchObject, ResearchObjectsResponse
+from app.modules.research_objects.service import (
+    create_research_object,
+    get_research_object,
+    list_research_objects,
+)
+from app.schemas.research_objects import ResearchObject, ResearchObjectCreate, ResearchObjectsResponse
 
 router = APIRouter(tags=["research_objects"])
 
@@ -14,3 +15,17 @@ def get_research_objects() -> ResearchObjectsResponse:
     return ResearchObjectsResponse(
         items=[ResearchObject(**item) for item in list_research_objects()]
     )
+
+
+@router.post("/research-objects", response_model=ResearchObject, status_code=201)
+def post_research_object(body: ResearchObjectCreate) -> ResearchObject:
+    created = create_research_object(body.model_dump())
+    return ResearchObject(**created)
+
+
+@router.get("/research-objects/{research_object_id}", response_model=ResearchObject)
+def get_research_object_by_id(research_object_id: str) -> ResearchObject:
+    item = get_research_object(research_object_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Research object not found")
+    return ResearchObject(**item)

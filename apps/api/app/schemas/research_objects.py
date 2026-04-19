@@ -1,16 +1,29 @@
-# Defines what a "research object" looks like when the API sends it back — the fields and their types.
-# The metadata and hash fields are rough placeholders; the real structure gets decided once we know how inputs are parsed.
-
 from pydantic import BaseModel
+
+
+class ResearchObjectCreate(BaseModel):
+    name: str
+    input_filename: str
+    input_file_type: str
+    pdb_id: str
 
 
 class ResearchObject(BaseModel):
     research_object_id: str
-    sequence_data: str
-    metadata: dict[str, str]
-    structure_reference: str | None = None
-    # Conceptually stable hash of the normalized input
-    hash: str
+    created_at: str
+    name: str
+    input_filename: str
+    input_file_type: str
+    pdb_id: str
+    mmcif_fetched_from: str | None
+    mmcif_hash: str | None
+    sequence_length: int | None
+    gc_content: float | None
+    avg_phred_score: float | None
+    reads_passing_qc: int | None
+    reads_total: int | None
+    ro_hash: str
+    status: str
 
 
 class ResearchObjectsResponse(BaseModel):

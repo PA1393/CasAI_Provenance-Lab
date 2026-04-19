@@ -14,3 +14,4 @@ def get_provenance(run_id: str) -> ProvenanceResponse:
     return ProvenanceResponse(
         items=[ProvenanceEvent(**event) for event in list_provenance_events(run_id)]
     )
+

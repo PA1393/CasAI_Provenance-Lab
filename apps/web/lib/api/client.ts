@@ -4,10 +4,27 @@ import { getPublicEnv } from "@casai/env";
 
 export type ResearchObject = {
   research_object_id: string;
-  sequence_data: string;
-  metadata: Record<string, string>;
-  structure_reference?: string;
-  hash: string;
+  created_at: string;
+  name: string;
+  input_filename: string;
+  input_file_type: string;
+  pdb_id: string;
+  mmcif_fetched_from: string | null;
+  mmcif_hash: string | null;
+  sequence_length: number | null;
+  gc_content: number | null;
+  avg_phred_score: number | null;
+  reads_passing_qc: number | null;
+  reads_total: number | null;
+  ro_hash: string;
+  status: string;
+};
+
+export type ResearchObjectCreate = {
+  name: string;
+  input_filename: string;
+  input_file_type: string;
+  pdb_id: string;
 };
 
 export type Run = {
@@ -60,19 +77,16 @@ export async function getResearchObjects(): Promise<ResearchObject[]> {
   return data.items;
 }
 
-// No single-item endpoint yet on the backend — filter from the list.
 export async function getResearchObject(researchObjectId: string): Promise<ResearchObject> {
-  const items = await getResearchObjects();
-  const found = items.find((ro) => ro.research_object_id === researchObjectId);
-  if (!found) throw new Error(`Research object not found: ${researchObjectId}`);
-  return found;
+  return apiFetch<ResearchObject>(`/api/v1/research-objects/${researchObjectId}`);
 }
 
-export async function createResearchObject(
-  _data: Omit<ResearchObject, "research_object_id" | "hash">,
-): Promise<ResearchObject> {
-  // POST endpoint not yet implemented on the backend.
-  throw new Error("createResearchObject: not yet implemented");
+export async function createResearchObject(data: ResearchObjectCreate): Promise<ResearchObject> {
+  return apiFetch<ResearchObject>("/api/v1/research-objects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 }
 
 // ─── Runs ─────────────────────────────────────────────────────────────────────

@@ -12,3 +12,4 @@ router = APIRouter(tags=["runs"])
 @router.get("/runs", response_model=RunsResponse)
 def get_runs() -> RunsResponse:
     return RunsResponse(items=[RunSummary(**item) for item in list_runs()])
+
