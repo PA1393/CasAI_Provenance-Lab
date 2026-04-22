@@ -30,8 +30,16 @@ export type ResearchObjectCreate = {
 export type Run = {
   run_id: string;
   research_object_id: string;
+  created_at: string;
+  prompt: string;
   status: string;
-  mode: string;
+  started_at: string | null;
+  completed_at: string | null;
+};
+
+export type RunCreate = {
+  research_object_id: string;
+  prompt: string;
 };
 
 export type ProvenanceEvent = {
@@ -96,19 +104,16 @@ export async function getRuns(): Promise<Run[]> {
   return data.items;
 }
 
-// No single-item endpoint yet on the backend — filter from the list.
 export async function getRun(runId: string): Promise<Run> {
-  const items = await getRuns();
-  const found = items.find((r) => r.run_id === runId);
-  if (!found) throw new Error(`Run not found: ${runId}`);
-  return found;
+  return apiFetch<Run>(`/api/v1/runs/${runId}`);
 }
 
-export async function createRun(
-  _data: Omit<Run, "run_id" | "status">,
-): Promise<Run> {
-  // POST endpoint not yet implemented on the backend.
-  throw new Error("createRun: not yet implemented");
+export async function createRun(data: RunCreate): Promise<Run> {
+  return apiFetch<Run>("/api/v1/runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 }
 
 // ─── Provenance ───────────────────────────────────────────────────────────────

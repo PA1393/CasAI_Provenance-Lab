@@ -1,15 +1,20 @@
-# Defines what a "run" looks like when the API sends it back — the fields and their types.
-# These field names are a starting point and will likely change as the run workflow gets built out.
-
 from pydantic import BaseModel
 
 
-class RunSummary(BaseModel):
+class RunCreate(BaseModel):
+    research_object_id: str
+    prompt: str
+
+
+class Run(BaseModel):
     run_id: str
     research_object_id: str
+    created_at: str
+    prompt: str
     status: str
-    mode: str
+    started_at: str | None
+    completed_at: str | None
 
 
 class RunsResponse(BaseModel):
-    items: list[RunSummary]
+    items: list[Run]

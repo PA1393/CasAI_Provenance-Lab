@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getRun, getRunProvenance, getRunResults } from "@/lib/api/client";
+import { getRun } from "@/lib/api/client";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
 import { RunTabs } from "@/components/runs/run-tabs";
 import { ErrorState } from "@/components/ui/error-state";
@@ -11,13 +11,9 @@ type Props = {
 export default async function RunPage({ params }: Props) {
   const { id } = await params;
 
-  let run, provenance, results;
+  let run;
   try {
-    [run, provenance, results] = await Promise.all([
-      getRun(id),
-      getRunProvenance(id),
-      getRunResults(id),
-    ]);
+    run = await getRun(id);
   } catch {
     return (
       <div className="mx-auto max-w-3xl">
@@ -47,18 +43,34 @@ export default async function RunPage({ params }: Props) {
       </div>
 
       <dl className="mt-6 grid grid-cols-2 gap-4 rounded-3xl border border-slate-200/80 bg-white/85 p-5 shadow-sm sm:grid-cols-3">
-        <div>
-          <dt className="text-xs text-slate-400">Mode</dt>
-          <dd className="mt-1 font-medium text-slate-700">{run.mode}</dd>
+        <div className="col-span-2 sm:col-span-3">
+          <dt className="text-xs text-slate-400">Prompt</dt>
+          <dd className="mt-1 text-sm text-slate-700">{run.prompt}</dd>
         </div>
         <div className="sm:col-span-2">
           <dt className="text-xs text-slate-400">Research Object</dt>
           <dd className="mt-1 font-mono text-xs text-slate-500">{run.research_object_id}</dd>
         </div>
+        <div>
+          <dt className="text-xs text-slate-400">Created</dt>
+          <dd className="mt-1 text-xs text-slate-500">{run.created_at}</dd>
+        </div>
+        {run.started_at && (
+          <div>
+            <dt className="text-xs text-slate-400">Started</dt>
+            <dd className="mt-1 text-xs text-slate-500">{run.started_at}</dd>
+          </div>
+        )}
+        {run.completed_at && (
+          <div>
+            <dt className="text-xs text-slate-400">Completed</dt>
+            <dd className="mt-1 text-xs text-slate-500">{run.completed_at}</dd>
+          </div>
+        )}
       </dl>
 
       <div className="mt-8">
-        <RunTabs provenance={provenance} results={results} />
+        <RunTabs provenance={[]} results={[]} />
       </div>
     </div>
   );

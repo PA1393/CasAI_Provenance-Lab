@@ -1,25 +1,34 @@
-# Returns fake hardcoded run data for now — there's no database yet, so this is just stand-in data.
-# When we add a database, list_runs() gets replaced with a real query.
-
 from datetime import UTC, datetime
+
+from app.db import get_supabase
 
 
 def list_runs() -> list[dict]:
-    now = datetime.now(UTC).isoformat()
+    client = get_supabase()
+    response = client.table("runs").select("*").order("created_at", desc=True).execute()
+    return response.data
 
-    return [
-        {
-            "run_id": "run_001",
-            "research_object_id": "ro_001",
-            "status": "draft",
-            "mode": "base-editing",
-            "created_at": now,
-        },
-        {
-            "run_id": "run_002",
-            "research_object_id": "ro_002",
-            "status": "ready",
-            "mode": "crispr-compare",
-            "created_at": now,
-        },
-    ]
+
+def get_run(run_id: str) -> dict | None:
+    client = get_supabase()
+    response = (
+        client.table("runs")
+        .select("*")
+        .eq("run_id", run_id)
+        .maybe_single()
+        .execute()
+    )
+    return response.data
+
+
+def create_run(research_object_id: str, prompt: str) -> dict:
+    client = get_supabase()
+    now = datetime.now(UTC).isoformat()
+    payload = {
+        "research_object_id": research_object_id,
+        "prompt": prompt,
+        "status": "running",
+        "started_at": now,
+    }
+    response = client.table("runs").insert(payload).execute()
+    return response.data[0]
