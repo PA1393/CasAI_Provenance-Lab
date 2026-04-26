@@ -51,7 +51,7 @@ function ProvenanceTab({ events }: { events: ProvenanceEvent[] }) {
           className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-3 text-sm"
         >
           <span className="font-medium text-slate-700">{event.event_type}</span>
-          <span className="ml-3 text-slate-400">{event.timestamp}</span>
+          <span className="ml-3 text-slate-400">{event.occurred_at}</span>
         </li>
       ))}
     </ol>
@@ -69,9 +69,14 @@ function ResultsTab({ results }: { results: Result[] }) {
           key={result.result_id}
           className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-3 text-sm"
         >
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-slate-700">{result.summary}</p>
-            <span className="shrink-0 text-xs text-slate-400">{result.status}</span>
+          <div className="flex flex-col gap-1">
+            <p className="text-slate-700">{result.edit_summary}</p>
+            {result.confidence != null && (
+              <span className="text-xs text-slate-400">
+                Confidence: {(result.confidence * 100).toFixed(0)}% · Off-target:{" "}
+                {((result.off_target_score ?? 0) * 100).toFixed(0)}%
+              </span>
+            )}
           </div>
         </li>
       ))}

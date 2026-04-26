@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getRun } from "@/lib/api/client";
+import { getRun, getRunProvenance, getRunResults } from "@/lib/api/client";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
 import { RunTabs } from "@/components/runs/run-tabs";
 import { ErrorState } from "@/components/ui/error-state";
@@ -26,6 +26,11 @@ export default async function RunPage({ params }: Props) {
       </div>
     );
   }
+
+  const [provenance, results] = await Promise.all([
+    getRunProvenance(id).catch(() => []),
+    getRunResults(id).catch(() => []),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -70,7 +75,7 @@ export default async function RunPage({ params }: Props) {
       </dl>
 
       <div className="mt-8">
-        <RunTabs provenance={[]} results={[]} />
+        <RunTabs provenance={provenance} results={results} />
       </div>
     </div>
   );

@@ -46,15 +46,20 @@ export type ProvenanceEvent = {
   event_id: string;
   run_id: string;
   event_type: string;
-  timestamp: string;
-  sequence: number;
+  message: string;
+  payload: Record<string, unknown> | null;
+  occurred_at: string;
 };
 
 export type Result = {
   result_id: string;
   run_id: string;
-  summary: string;
-  status: string;
+  research_object_id: string | null;
+  edited_sequence: string | null;
+  edit_summary: string | null;
+  off_target_score: number | null;
+  confidence: number | null;
+  notes: string | null;
 };
 
 // ─── Base fetch ───────────────────────────────────────────────────────────────
