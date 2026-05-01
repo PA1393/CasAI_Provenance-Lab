@@ -14,6 +14,8 @@ class Run(BaseModel):
     status: str
     started_at: str | None
     completed_at: str | None
+    guide_rna: str | None = None
+    current_stage: str | None = None
 
 
 class RunsResponse(BaseModel):

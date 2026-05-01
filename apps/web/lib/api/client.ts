@@ -18,6 +18,8 @@ export type ResearchObject = {
   reads_total: number | null;
   ro_hash: string;
   status: string;
+  fasta_preview: string | null;
+  target_region: number[] | null;
 };
 
 export type ResearchObjectCreate = {
@@ -35,6 +37,8 @@ export type Run = {
   status: string;
   started_at: string | null;
   completed_at: string | null;
+  guide_rna: string | null;
+  current_stage: string | null;
 };
 
 export type RunCreate = {
@@ -45,9 +49,11 @@ export type RunCreate = {
 export type ProvenanceEvent = {
   event_id: string;
   run_id: string;
+  stage: string;
   event_type: string;
   message: string;
   payload: Record<string, unknown> | null;
+  duration_ms: number | null;
   occurred_at: string;
 };
 
@@ -58,8 +64,9 @@ export type Result = {
   edited_sequence: string | null;
   edit_summary: string | null;
   off_target_score: number | null;
-  confidence: number | null;
+  on_target_score: number | null;
   notes: string | null;
+  reproducible: boolean;
 };
 
 // ─── Base fetch ───────────────────────────────────────────────────────────────

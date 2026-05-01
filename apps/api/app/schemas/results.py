@@ -8,8 +8,9 @@ class Result(BaseModel):
     edited_sequence: str | None = None
     edit_summary: str | None = None
     off_target_score: float | None = None
-    confidence: float | None = None
+    on_target_score: float | None = None
     notes: str | None = None
+    reproducible: bool = True
 
 
 class ResultsResponse(BaseModel):

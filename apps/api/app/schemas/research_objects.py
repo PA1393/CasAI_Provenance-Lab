@@ -6,6 +6,7 @@ class ResearchObjectCreate(BaseModel):
     input_filename: str
     input_file_type: str
     pdb_id: str
+    target_region: list[int] | None = None
 
 
 class ResearchObject(BaseModel):
@@ -24,6 +25,8 @@ class ResearchObject(BaseModel):
     reads_total: int | None
     ro_hash: str
     status: str
+    fasta_preview: str | None = None
+    target_region: list[int] | None = None
 
 
 class ResearchObjectsResponse(BaseModel):
