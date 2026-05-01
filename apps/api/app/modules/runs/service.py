@@ -68,7 +68,7 @@ def _build_mock_provenance_events(
     pdb_id = ro.get("pdb_id", "UNKNOWN")
     stages = [
         (
-            "input_validated",
+            "input", "input_validated",
             "Input bundle validated successfully",
             {
                 "research_object_id": ro.get("research_object_id"),
@@ -79,7 +79,7 @@ def _build_mock_provenance_events(
             },
         ),
         (
-            "fields_extracted",
+            "fields", "fields_extracted",
             "Core sequence and structural fields extracted",
             {
                 "sequence_length": ro.get("sequence_length", 0),
@@ -89,7 +89,7 @@ def _build_mock_provenance_events(
             },
         ),
         (
-            "research_object_loaded",
+            "extract", "research_object_loaded",
             "Research Object loaded for simulation",
             {
                 "research_object_id": ro.get("research_object_id"),
@@ -98,7 +98,7 @@ def _build_mock_provenance_events(
             },
         ),
         (
-            "simulation_executed",
+            "simulate", "simulation_executed",
             "Instruction-driven simulation executed against sequence and structure context",
             {
                 "prompt": prompt,
@@ -109,7 +109,7 @@ def _build_mock_provenance_events(
             },
         ),
         (
-            "results_packaged",
+            "results", "results_packaged",
             "Results and provenance package prepared",
             {
                 "run_id": run_id,
@@ -121,14 +121,14 @@ def _build_mock_provenance_events(
     return [
         {
             "run_id": run_id,
+            "stage": stage,
             "event_type": event_type,
             "message": message,
             "payload": payload,
             "occurred_at": (base_time + timedelta(seconds=i + 1)).isoformat(),
-            "stage": event_type.split("_")[0],  # crude stage assignment
-            "duration_ms": 1000 + i * 500,  # mock durations
+            "duration_ms": 1000 + i * 500,
         }
-        for i, (event_type, message, payload) in enumerate(stages)
+        for i, (stage, event_type, message, payload) in enumerate(stages)
     ]
 
 

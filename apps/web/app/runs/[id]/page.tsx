@@ -75,7 +75,7 @@ export default async function RunPage({ params }: Props) {
       </dl>
 
       <div className="mt-8">
-        <RunTabs provenance={provenance} results={results} />
+        <RunTabs provenance={provenance} results={results} currentStage={run.current_stage} />
       </div>
     </div>
   );

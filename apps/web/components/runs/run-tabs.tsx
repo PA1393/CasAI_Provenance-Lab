@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import type { ProvenanceEvent, Result } from "@/lib/api/client";
+import { RunPipeline } from "@/components/runs/run-pipeline";
 
 type Props = {
   provenance: ProvenanceEvent[];
   results: Result[];
+  currentStage: string | null;
 };
 
 type Tab = "provenance" | "results";
 
-export function RunTabs({ provenance, results }: Props) {
+export function RunTabs({ provenance, results, currentStage }: Props) {
   const [active, setActive] = useState<Tab>("provenance");
 
   return (
@@ -32,30 +34,18 @@ export function RunTabs({ provenance, results }: Props) {
       </div>
 
       <div className="mt-5">
-        {active === "provenance" && <ProvenanceTab events={provenance} />}
+        {active === "provenance" && <ProvenanceTab events={provenance} currentStage={currentStage} />}
         {active === "results" && <ResultsTab results={results} />}
       </div>
     </div>
   );
 }
 
-function ProvenanceTab({ events }: { events: ProvenanceEvent[] }) {
+function ProvenanceTab({ events, currentStage }: { events: ProvenanceEvent[]; currentStage: string | null }) {
   if (events.length === 0) {
     return <p className="text-sm text-slate-500">No provenance events recorded yet.</p>;
   }
-  return (
-    <ol className="flex flex-col gap-2">
-      {events.map((event) => (
-        <li
-          key={event.event_id}
-          className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-3 text-sm"
-        >
-          <span className="font-medium text-slate-700">{event.event_type}</span>
-          <span className="ml-3 text-slate-400">{event.occurred_at}</span>
-        </li>
-      ))}
-    </ol>
-  );
+  return <RunPipeline provenance={events} currentStage={currentStage} />;
 }
 
 function ResultsTab({ results }: { results: Result[] }) {
@@ -71,9 +61,9 @@ function ResultsTab({ results }: { results: Result[] }) {
         >
           <div className="flex flex-col gap-1">
             <p className="text-slate-700">{result.edit_summary}</p>
-            {result.confidence != null && (
+            {result.on_target_score != null && (
               <span className="text-xs text-slate-400">
-                Confidence: {(result.confidence * 100).toFixed(0)}% · Off-target:{" "}
+                On-target: {(result.on_target_score * 100).toFixed(0)}% · Off-target:{" "}
                 {((result.off_target_score ?? 0) * 100).toFixed(0)}%
               </span>
             )}
