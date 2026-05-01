@@ -104,7 +104,7 @@ def _build_mock_provenance_events(
                 "prompt": prompt,
                 "pdb_id": pdb_id,
                 "sequence_length": ro.get("sequence_length", 0),
-                "confidence": 0.87,
+                "on_target_score": 0.87,
                 "off_target_score": 0.05,
             },
         ),
@@ -144,7 +144,6 @@ def _build_mock_result(run_id: str, ro: dict) -> dict:
             f"Base edit at position 742 (A→G) targeting {pdb_id} structural context. "
             "Edit efficiency estimated at 87%. Off-target probability low."
         ),
-        "off_target_score": 0.05,
         "on_target_score": 0.82,
         "off_target_score": 0.14,
         "reproducible": True,
