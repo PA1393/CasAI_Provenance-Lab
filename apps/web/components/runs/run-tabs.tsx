@@ -50,24 +50,60 @@ function ProvenanceTab({ events, currentStage }: { events: ProvenanceEvent[]; cu
 
 function ResultsTab({ results }: { results: Result[] }) {
   if (results.length === 0) {
-    return <p className="text-sm text-slate-500">No results available yet.</p>;
+    return (
+      <p className="rounded-2xl border border-dashed border-slate-200 px-5 py-8 text-center text-sm text-slate-400">
+        No results recorded for this run.
+      </p>
+    );
   }
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col gap-4">
       {results.map((result) => (
         <li
           key={result.result_id}
-          className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-3 text-sm"
+          className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-4 text-sm shadow-sm"
         >
-          <div className="flex flex-col gap-1">
-            <p className="text-slate-700">{result.edit_summary}</p>
-            {result.on_target_score != null && (
-              <span className="text-xs text-slate-400">
-                On-target: {(result.on_target_score * 100).toFixed(0)}% · Off-target:{" "}
-                {((result.off_target_score ?? 0) * 100).toFixed(0)}%
-              </span>
-            )}
-          </div>
+          {result.edit_summary && (
+            <p className="text-slate-700 leading-relaxed">{result.edit_summary}</p>
+          )}
+
+          {(result.on_target_score != null || result.off_target_score != null) && (
+            <div className="mt-3 flex gap-6">
+              {result.on_target_score != null && (
+                <div>
+                  <p className="text-xs text-slate-400">On-target efficiency</p>
+                  <p className="mt-0.5 text-lg font-semibold text-accent">
+                    {(result.on_target_score * 100).toFixed(0)}%
+                  </p>
+                </div>
+              )}
+              {result.off_target_score != null && (
+                <div>
+                  <p className="text-xs text-slate-400">Off-target risk</p>
+                  <p className="mt-0.5 text-lg font-semibold text-slate-600">
+                    {(result.off_target_score * 100).toFixed(0)}%
+                  </p>
+                </div>
+              )}
+              {result.reproducible && (
+                <div>
+                  <p className="text-xs text-slate-400">Reproducible</p>
+                  <p className="mt-0.5 text-sm font-medium text-emerald-600">✓ Yes</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {result.edited_sequence && (
+            <div className="mt-3">
+              <p className="text-xs text-slate-400">Edited sequence</p>
+              <p className="mt-1 font-mono text-xs text-slate-500 break-all">{result.edited_sequence}</p>
+            </div>
+          )}
+
+          {result.notes && (
+            <p className="mt-3 text-xs text-slate-400 border-t border-slate-100 pt-3">{result.notes}</p>
+          )}
         </li>
       ))}
     </ul>

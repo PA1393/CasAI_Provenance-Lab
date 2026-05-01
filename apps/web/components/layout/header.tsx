@@ -35,7 +35,7 @@ export function Header() {
       </nav>
 
       <div className="flex items-center gap-2 rounded-full border border-accent/60 px-3 py-1">
-        <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+        <div className="h-1.5 w-1.5 animate-pulse-soft rounded-full bg-accent" />
         <span className="font-mono text-[10px] font-semibold tracking-[0.2em] text-accent">
           MVP · DEMO
         </span>

@@ -38,7 +38,7 @@ def create_run(research_object_id: str, prompt: str) -> dict:
         "research_object_id": research_object_id,
         "prompt": prompt,
         "status": "running",
-        "current_stage": "preflight",
+        "current_stage": "input",
         "started_at": now.isoformat(),
     }
     run_response = client.table("runs").insert(run_payload).execute()
@@ -109,12 +109,21 @@ def _build_mock_provenance_events(
             },
         ),
         (
+            "score", "edit_scored",
+            "Edit efficiency and off-target risk scored",
+            {
+                "on_target_score": 0.82,
+                "off_target_score": 0.14,
+                "scoring_model": "mock-v1",
+            },
+        ),
+        (
             "results", "results_packaged",
             "Results and provenance package prepared",
             {
                 "run_id": run_id,
                 "result_count": 1,
-                "provenance_event_count": 5,
+                "provenance_event_count": 6,
             },
         ),
     ]
