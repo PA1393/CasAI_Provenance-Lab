@@ -38,6 +38,7 @@ def create_run(research_object_id: str, prompt: str) -> dict:
         "research_object_id": research_object_id,
         "prompt": prompt,
         "status": "running",
+        "current_stage": "preflight",
         "started_at": now.isoformat(),
     }
     run_response = client.table("runs").insert(run_payload).execute()
@@ -51,7 +52,7 @@ def create_run(research_object_id: str, prompt: str) -> dict:
     client.table("results").insert(result).execute()
 
     completed_at = (now + timedelta(seconds=6)).isoformat()
-    client.table("runs").update({"status": "completed", "completed_at": completed_at}).eq(
+    client.table("runs").update({"status": "completed","current_stage": "summary" ,"completed_at": completed_at}).eq(
         "run_id", run_id
     ).execute()
 
@@ -124,6 +125,8 @@ def _build_mock_provenance_events(
             "message": message,
             "payload": payload,
             "occurred_at": (base_time + timedelta(seconds=i + 1)).isoformat(),
+            "stage": event_type.split("_")[0],  # crude stage assignment
+            "duration_ms": 1000 + i * 500,  # mock durations
         }
         for i, (event_type, message, payload) in enumerate(stages)
     ]
@@ -142,7 +145,9 @@ def _build_mock_result(run_id: str, ro: dict) -> dict:
             "Edit efficiency estimated at 87%. Off-target probability low."
         ),
         "off_target_score": 0.05,
-        "confidence": 0.87,
+        "on_target_score": 0.82,
+        "off_target_score": 0.14,
+        "reproducible": True,
         "notes": (
             f"Simulated outcome using {pdb_id} mmCIF context. "
             f"QC passed ({reads_passing}/{reads_total} reads)."
