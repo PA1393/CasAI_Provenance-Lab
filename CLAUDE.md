@@ -82,6 +82,11 @@ test-fixtures/ Sample data
 - No Docker, no auth, no Prefect in scope currently
 - Do not overbuild — clean scaffold over feature completeness
 
+## Conventions
+
+- `target_region` coordinates are **1-indexed base pairs** (e.g. `[720, 742]` means bp 720 to 742 inclusive). The field is always optional — the pipeline must not fail or branch when absent.
+- Pipeline stage vocabulary (ordered): `input` → `fields` → `extract` → `simulate` → `score` → `results` → `summary`. `summary` is a terminal run state, not an emitted provenance event.
+
 ## Domains in Scope
 
 `runs` · `uploads` · `provenance` · `compare` · `export` · `pipeline`

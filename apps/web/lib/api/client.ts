@@ -35,7 +35,7 @@ export type Run = {
   research_object_id: string;
   created_at: string;
   prompt: string;
-  status: string;
+  status: "queued" | "running" | "completed" | "failed";
   started_at: string | null;
   completed_at: string | null;
   guide_rna: string | null;

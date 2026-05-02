@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-
+from typing import Literal
 
 class RunCreate(BaseModel):
     research_object_id: str
@@ -11,7 +11,7 @@ class Run(BaseModel):
     research_object_id: str
     created_at: str
     prompt: str
-    status: str
+    status: Literal["queued", "running", "completed", "failed"]
     started_at: str | None
     completed_at: str | None
     guide_rna: str | None = None

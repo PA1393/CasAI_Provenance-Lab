@@ -16,13 +16,13 @@ class ResearchObject(BaseModel):
     input_filename: str
     input_file_type: str
     pdb_id: str
-    mmcif_fetched_from: str | None
-    mmcif_hash: str | None
-    sequence_length: int | None
-    gc_content: float | None
-    avg_phred_score: float | None
-    reads_passing_qc: int | None
-    reads_total: int | None
+    mmcif_fetched_from: str | None = None
+    mmcif_hash: str | None = None
+    sequence_length: int | None = None
+    gc_content: float | None = None
+    avg_phred_score: float | None = None
+    reads_passing_qc: int | None = None
+    reads_total: int | None = None
     ro_hash: str
     status: str
     fasta_preview: str | None = None
