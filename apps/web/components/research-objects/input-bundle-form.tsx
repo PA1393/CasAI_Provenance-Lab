@@ -10,6 +10,9 @@ export function InputBundleForm() {
   const [inputFilename, setInputFilename] = useState("");
   const [inputFileType, setInputFileType] = useState("fastq");
   const [pdbId, setPdbId] = useState("");
+  const [targetStart, setTargetStart] = useState("");
+  const [targetEnd, setTargetEnd] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,11 +26,19 @@ export function InputBundleForm() {
     setError(null);
     setSubmitting(true);
     try {
+      const start = parseInt(targetStart);
+      const end = parseInt(targetEnd);
+      const target_region =
+        targetStart && targetEnd && !isNaN(start) && !isNaN(end) && start < end
+          ? [start, end]
+          : undefined;
+
       const created = await createResearchObject({
         name,
         input_filename: inputFilename,
         input_file_type: inputFileType,
         pdb_id: pdbId,
+        ...(target_region ? { target_region } : {}),
       });
       router.push(`/research-objects/${created.research_object_id}`);
     } catch (err) {
@@ -93,6 +104,48 @@ export function InputBundleForm() {
             className="w-28 rounded-xl border border-slate-200 bg-mist px-4 py-2.5 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </label>
+        <div className="flex flex-col gap-3 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors w-fit"
+          >
+            <span>{showAdvanced ? "▾" : "▸"}</span>
+            Advanced Options
+          </button>
+
+          {showAdvanced && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-4">
+              <p className="text-xs text-slate-400">
+                Target region — optional. Provide approximate nucleotide coordinates (1-indexed bp) if you know the region of interest.
+              </p>
+              <div className="flex gap-3">
+                <label className="flex flex-col gap-1.5 flex-1">
+                  <span className="text-xs font-medium text-slate-500">Start (bp)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={targetStart}
+                    onChange={(e) => setTargetStart(e.target.value)}
+                    placeholder="e.g. 720"
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 flex-1">
+                  <span className="text-xs font-medium text-slate-500">End (bp)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={targetEnd}
+                    onChange={(e) => setTargetEnd(e.target.value)}
+                    placeholder="e.g. 742"
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (

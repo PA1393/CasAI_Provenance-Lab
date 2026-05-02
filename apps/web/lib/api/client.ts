@@ -27,6 +27,7 @@ export type ResearchObjectCreate = {
   input_filename: string;
   input_file_type: string;
   pdb_id: string;
+  target_region?: number[];
 };
 
 export type Run = {

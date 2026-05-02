@@ -16,6 +16,8 @@ def _build_mock_fields(pdb_id: str) -> dict:
         "reads_total": 1000000,
         "ro_hash": f"sha256:mock_ro_hash_{pdb_id.lower()}",
         "status": "ready",
+        "fasta_preview": "ATGCGATCGGTACTAGTACGATCGGTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGC...",
+        "target_region": [720, 742],
     }
 
 
