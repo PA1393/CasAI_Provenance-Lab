@@ -24,3 +24,4 @@ apps/api/.ruff_cache
 apps/api/pytest-cache-files-*
 apps/api/__pycache__
 apps/api/**/*.pyc
+.env

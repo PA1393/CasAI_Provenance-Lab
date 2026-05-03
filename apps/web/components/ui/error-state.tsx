@@ -4,9 +4,11 @@ type ErrorStateProps = {
 
 export function ErrorState({ message = "Something went wrong." }: ErrorStateProps) {
   return (
-    <div className="rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-center">
-      <p className="font-medium text-red-700">Error</p>
-      <p className="mt-1 text-sm text-red-600">{message}</p>
+    <div className="rounded-lg border border-accent-red/40 bg-bg-card px-6 py-8 text-center">
+      <p className="font-mono text-xs tracking-[0.2em] uppercase font-semibold text-accent-red">
+        Error
+      </p>
+      <p className="mt-2 text-sm text-text">{message}</p>
     </div>
   );
 }

@@ -21,41 +21,50 @@ export function RunPipeline({ provenance, currentStage }: Props) {
         return (
           <li
             key={stage.key}
-            className={`rounded-2xl border px-5 py-3 text-sm transition ${
+            className={`rounded-lg border px-5 py-4 transition-colors ${
               isActive
                 ? "border-accent/60 bg-accent/5"
                 : isDone
-                  ? "border-slate-200/80 bg-white/85"
-                  : "border-slate-100 bg-slate-50/40 opacity-40"
+                  ? "border-border bg-bg-card"
+                  : "border-border/50 bg-bg-card/30 opacity-50"
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-bold ${
                     isDone
-                      ? "bg-accent text-white"
+                      ? "bg-accent text-bg"
                       : isActive
                         ? "border border-accent text-accent"
-                        : "border border-slate-200 text-slate-300"
+                        : "border border-border text-muted"
                   }`}
                 >
                   {isDone ? "✓" : i + 1}
                 </span>
-                <span className={`font-medium ${isActive ? "text-accent" : isDone ? "text-slate-700" : "text-slate-400"}`}>
+                <span
+                  className={`font-mono text-xs tracking-[0.2em] uppercase font-semibold ${
+                    isActive ? "text-accent" : isDone ? "text-text" : "text-muted"
+                  }`}
+                >
                   {stage.label}
                 </span>
               </div>
               {isActive && (
-                <span className="animate-pulse-soft text-xs text-accent">running</span>
+                <span className="animate-pulse-soft font-mono text-[10px] tracking-[0.2em] uppercase text-accent">
+                  RUNNING
+                </span>
               )}
             </div>
 
             {events.map((event) => (
-              <div key={event.event_id} className="mt-2 ml-8 flex items-start justify-between gap-4">
-                <span className="text-slate-500">{event.message}</span>
+              <div
+                key={event.event_id}
+                className="mt-3 ml-9 flex items-start justify-between gap-4"
+              >
+                <span className="text-sm text-muted">{event.message}</span>
                 {event.duration_ms != null && (
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">
+                  <span className="shrink-0 rounded border border-border bg-bg px-2 py-0.5 font-mono text-[10px] text-muted">
                     {event.duration_ms}ms
                   </span>
                 )}

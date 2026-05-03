@@ -33,9 +33,9 @@ export function StartRunForm({ researchObjectId }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex rounded-full border border-accent px-5 py-2.5 text-sm font-semibold text-accent transition hover:bg-accentSoft"
+        className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded border border-accent text-accent hover:bg-accent hover:text-bg transition-colors"
       >
-        Start Run
+        Start Run →
       </button>
     );
   }
@@ -48,21 +48,27 @@ export function StartRunForm({ researchObjectId }: Props) {
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Describe what you want to run…"
         rows={4}
-        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-accent focus:outline-none resize-none"
+        className="w-full rounded-lg border border-border bg-bg-card px-4 py-3 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none resize-none transition-colors"
       />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && (
+        <p className="font-mono text-xs text-accent-red">ERROR: {error}</p>
+      )}
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={submitting || !prompt.trim()}
-          className="inline-flex rounded-full border border-accent bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+          className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded bg-accent text-bg hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
           {submitting ? "Starting…" : "Submit"}
         </button>
         <button
           type="button"
-          onClick={() => { setOpen(false); setPrompt(""); setError(null); }}
-          className="inline-flex rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-slate-300"
+          onClick={() => {
+            setOpen(false);
+            setPrompt("");
+            setError(null);
+          }}
+          className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded border border-border text-muted hover:border-text hover:text-text transition-colors"
         >
           Cancel
         </button>

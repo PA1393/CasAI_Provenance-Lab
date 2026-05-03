@@ -18,14 +18,14 @@ export default async function RunPage({ params }: Props) {
     run = await getRun(id);
   } catch {
     return (
-      <div className="mx-auto max-w-3xl">
-        <Link href="/runs" className="text-sm text-slate-500 hover:text-accent">
-          ← Runs
+      <section className="px-8 pt-12 pb-12 max-w-4xl mx-auto">
+        <Link href="/runs" className="font-mono text-xs tracking-[0.2em] uppercase text-muted hover:text-accent transition-colors">
+          ← RUNS
         </Link>
         <div className="mt-6">
           <ErrorState message={`Could not load run: ${id}`} />
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -42,57 +42,65 @@ export default async function RunPage({ params }: Props) {
       : null;
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link href="/runs" className="text-sm text-slate-500 hover:text-accent">
-        ← All runs
+    <section className="px-8 pt-12 pb-12 max-w-4xl mx-auto">
+      <Link href="/runs" className="font-mono text-xs tracking-[0.2em] uppercase text-muted hover:text-accent transition-colors">
+        ← ALL RUNS
       </Link>
 
-      <div className="mt-4 flex items-center gap-3">
-        <Eyebrow>Run</Eyebrow>
+      <div className="mt-6 flex items-center gap-3">
+        <Eyebrow>──── RUN</Eyebrow>
         <RunStatusBadge status={run.status} />
       </div>
 
-      <div className="mt-1 flex items-center gap-2">
-        <h1 className="text-2xl font-semibold text-ink">{run.prompt}</h1>
-      </div>
-      <Hash value={run.run_id} length={16} className="mt-1" />
+      <h1 className="mt-3 font-serif-display text-3xl md:text-4xl">{run.prompt}</h1>
+      <Hash value={run.run_id} length={16} className="mt-2 block" />
 
-      <dl className="mt-6 grid grid-cols-2 gap-4 rounded-3xl border border-slate-200/80 bg-white/85 p-5 shadow-sm sm:grid-cols-3">
+      <dl className="mt-8 grid grid-cols-2 gap-4 rounded-lg border border-border bg-bg-card p-6 sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <dt className="text-xs text-slate-400">Research Object</dt>
-          <dd className="mt-1">
+          <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+            Research Object
+          </dt>
+          <dd className="mt-2">
             <Hash value={run.research_object_id} length={20} />
           </dd>
         </div>
         {run.guide_rna && (
           <div className="sm:col-span-1">
-            <dt className="text-xs text-slate-400">Guide RNA</dt>
-            <dd className="mt-1 font-mono text-xs text-slate-600">{run.guide_rna}</dd>
+            <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+              Guide RNA
+            </dt>
+            <dd className="mt-2 font-mono text-xs text-text">{run.guide_rna}</dd>
           </div>
         )}
         <div>
-          <dt className="text-xs text-slate-400">Started</dt>
-          <dd className="mt-1 text-xs text-slate-500">
+          <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+            Started
+          </dt>
+          <dd className="mt-2 text-xs text-text">
             {startedAt ? startedAt.toLocaleString() : "—"}
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-slate-400">Completed</dt>
-          <dd className="mt-1 text-xs text-slate-500">
+          <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+            Completed
+          </dt>
+          <dd className="mt-2 text-xs text-text">
             {completedAt ? completedAt.toLocaleString() : "—"}
           </dd>
         </div>
         {durationSec && (
           <div>
-            <dt className="text-xs text-slate-400">Duration</dt>
-            <dd className="mt-1 text-xs text-slate-500">{durationSec}s</dd>
+            <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+              Duration
+            </dt>
+            <dd className="mt-2 text-xs text-accent">{durationSec}s</dd>
           </div>
         )}
       </dl>
 
-      <div className="mt-8">
+      <div className="mt-10">
         <RunTabs provenance={provenance} results={results} currentStage={run.current_stage} />
       </div>
-    </div>
+    </section>
   );
 }

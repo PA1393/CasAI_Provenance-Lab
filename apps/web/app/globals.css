@@ -3,60 +3,83 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+  --bg: #0a0a0f;
+  --bg-card: #13131c;
+  --border: #1f1f28;
+  --text: #e8e8ed;
+  --muted: #8a8a95;
+  --accent: #7dd3d8;
+  --accent-red: #e85d4d;
+  --accent-amber: #f5b942;
+  --accent-green: #9dd89d;
 }
 
-body {
+* { box-sizing: border-box; border-color: var(--border); }
+
+html, body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(204, 251, 241, 0.8), transparent 35%),
-    linear-gradient(180deg, #f8fafc 0%, #eef6f5 100%);
-  color: #0f172a;
-  font-family: Georgia, "Times New Roman", serif;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Cosmic starfield background */
+body {
+  background-image:
+    radial-gradient(circle 1px at 10% 20%, rgba(255,255,255,0.15), transparent),
+    radial-gradient(circle 1px at 30% 70%, rgba(255,255,255,0.10), transparent),
+    radial-gradient(circle 1px at 50% 30%, rgba(255,255,255,0.20), transparent),
+    radial-gradient(circle 1px at 70% 80%, rgba(255,255,255,0.10), transparent),
+    radial-gradient(circle 1px at 90% 40%, rgba(255,255,255,0.15), transparent),
+    radial-gradient(circle 1px at 15% 85%, rgba(125,211,216,0.20), transparent),
+    radial-gradient(circle 1px at 85% 15%, rgba(125,211,216,0.15), transparent),
+    radial-gradient(circle 1px at 60% 60%, rgba(255,255,255,0.10), transparent),
+    radial-gradient(circle 1px at 25% 45%, rgba(255,255,255,0.15), transparent),
+    radial-gradient(circle 1px at 75% 25%, rgba(255,255,255,0.12), transparent);
+  background-size:
+    600px 600px, 800px 800px, 700px 700px, 900px 900px, 750px 750px,
+    850px 850px, 650px 650px, 950px 950px, 720px 720px, 880px 880px;
+  background-attachment: fixed;
 }
 
-* {
-  box-sizing: border-box;
+a { color: inherit; text-decoration: none; }
+
+.font-serif-display {
+  font-family: 'Georgia', 'Cambria', serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
 }
 
-/* ─── Selection ──────────────────────────────────────────────────────────────*/
-::selection {
-  background: #0f766e;
-  color: #f8fafc;
+.font-mono-label {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
 }
 
-/* ─── Scrollbars ─────────────────────────────────────────────────────────────*/
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f8fafc; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #0f766e; }
+::selection { background: var(--accent); color: var(--bg); }
 
-/* ─── Animations ─────────────────────────────────────────────────────────────*/
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  50% { opacity: 0.4; }
 }
-
-.animate-pulse-soft {
-  animation: pulse-soft 1.8s ease-in-out infinite;
-}
+.animate-pulse-soft { animation: pulse-soft 1.5s ease-in-out infinite; }
 
 @keyframes shimmer {
-  0% { background-position: -800px 0; }
-  100% { background-position: 800px 0; }
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
 }
-
 .shimmer {
-  background: linear-gradient(90deg, transparent, rgba(15, 118, 110, 0.07), transparent);
-  background-size: 800px 100%;
+  background: linear-gradient(90deg, transparent, rgba(125,211,216,0.08), transparent);
+  background-size: 1000px 100%;
   animation: shimmer 2s infinite;
 }
-

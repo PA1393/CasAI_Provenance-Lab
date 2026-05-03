@@ -4,7 +4,7 @@ export function LoadingState({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="shimmer h-32 rounded-3xl border border-slate-200/80 bg-slate-100/80"
+          className="shimmer h-32 rounded-lg border border-border bg-bg-card"
         />
       ))}
     </div>
