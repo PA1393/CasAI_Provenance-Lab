@@ -7,7 +7,7 @@ type Props = {
 };
 
 export function RunCard({ run }: Props) {
-  const { run_id, research_object_id, status, mode } = run;
+  const { run_id, research_object_id, status, prompt } = run;
   return (
     <Link
       href={`/runs/${run_id}`}
@@ -18,11 +18,11 @@ export function RunCard({ run }: Props) {
         <RunStatusBadge status={status} />
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-        <div>
-          <dt className="text-xs text-slate-400">Mode</dt>
-          <dd className="font-medium text-slate-700">{mode}</dd>
+        <div className="col-span-2">
+          <dt className="text-xs text-slate-400">Prompt</dt>
+          <dd className="truncate font-medium text-slate-700">{prompt}</dd>
         </div>
-        <div>
+        <div className="col-span-2">
           <dt className="text-xs text-slate-400">Research Object</dt>
           <dd className="truncate font-mono text-xs text-slate-500">{research_object_id}</dd>
         </div>

@@ -67,9 +67,7 @@ bun run check:api
 
 ## Getting Started
 
-The root API scripts assume:
-
-- the backend virtual environment is already activated
-- the backend package has already been installed with `python -m pip install -e .[dev]`
+The root API scripts use the backend interpreter at `apps/api/.venv` directly.
+They do not use a repo-root `.venv` or whichever `python` happens to be on `PATH`.
 
 The frontend expects the backend at `http://127.0.0.1:8000` by default.

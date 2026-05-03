@@ -19,7 +19,7 @@ def get_research_objects() -> ResearchObjectsResponse:
 
 @router.post("/research-objects", response_model=ResearchObject, status_code=201)
 def post_research_object(body: ResearchObjectCreate) -> ResearchObject:
-    created = create_research_object(body.model_dump())
+    created = create_research_object(body.model_dump(exclude_none=True))
     return ResearchObject(**created)
 
 

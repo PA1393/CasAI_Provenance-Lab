@@ -18,6 +18,8 @@ export type ResearchObject = {
   reads_total: number | null;
   ro_hash: string;
   status: string;
+  fasta_preview: string | null;
+  target_region: number[] | null;
 };
 
 export type ResearchObjectCreate = {
@@ -25,28 +27,47 @@ export type ResearchObjectCreate = {
   input_filename: string;
   input_file_type: string;
   pdb_id: string;
+  target_region?: number[];
 };
 
 export type Run = {
   run_id: string;
   research_object_id: string;
-  status: string;
-  mode: string;
+  created_at: string;
+  prompt: string;
+  status: "queued" | "running" | "completed" | "failed";
+  started_at: string | null;
+  completed_at: string | null;
+  guide_rna: string | null;
+  current_stage: string | null;
+};
+
+export type RunCreate = {
+  research_object_id: string;
+  prompt: string;
 };
 
 export type ProvenanceEvent = {
   event_id: string;
   run_id: string;
+  stage: string;
   event_type: string;
-  timestamp: string;
-  sequence: number;
+  message: string;
+  payload: Record<string, unknown> | null;
+  duration_ms: number | null;
+  occurred_at: string;
 };
 
 export type Result = {
   result_id: string;
   run_id: string;
-  summary: string;
-  status: string;
+  research_object_id: string | null;
+  edited_sequence: string | null;
+  edit_summary: string | null;
+  off_target_score: number | null;
+  on_target_score: number | null;
+  notes: string | null;
+  reproducible: boolean;
 };
 
 // ─── Base fetch ───────────────────────────────────────────────────────────────
@@ -96,19 +117,16 @@ export async function getRuns(): Promise<Run[]> {
   return data.items;
 }
 
-// No single-item endpoint yet on the backend — filter from the list.
 export async function getRun(runId: string): Promise<Run> {
-  const items = await getRuns();
-  const found = items.find((r) => r.run_id === runId);
-  if (!found) throw new Error(`Run not found: ${runId}`);
-  return found;
+  return apiFetch<Run>(`/api/v1/runs/${runId}`);
 }
 
-export async function createRun(
-  _data: Omit<Run, "run_id" | "status">,
-): Promise<Run> {
-  // POST endpoint not yet implemented on the backend.
-  throw new Error("createRun: not yet implemented");
+export async function createRun(data: RunCreate): Promise<Run> {
+  return apiFetch<Run>("/api/v1/runs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
 }
 
 // ─── Provenance ───────────────────────────────────────────────────────────────
