@@ -7,24 +7,30 @@ type Props = {
 };
 
 export function RunCard({ run }: Props) {
-  const { run_id, research_object_id, status, mode } = run;
+  const { run_id, research_object_id, status, prompt } = run;
   return (
     <Link
       href={`/runs/${run_id}`}
-      className="group block rounded-3xl border border-slate-200/80 bg-white/85 p-5 shadow-sm transition hover:border-accent/40 hover:shadow-md"
+      className="group block rounded-lg border border-border bg-bg-card p-5 hover:border-accent/60 transition-colors"
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="truncate font-mono text-xs text-slate-400">{run_id}</p>
+        <p className="truncate font-mono text-xs text-muted">{run_id}</p>
         <RunStatusBadge status={status} />
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-        <div>
-          <dt className="text-xs text-slate-400">Mode</dt>
-          <dd className="font-medium text-slate-700">{mode}</dd>
+      <dl className="mt-4 grid grid-cols-2 gap-2">
+        <div className="col-span-2">
+          <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+            PROMPT
+          </dt>
+          <dd className="mt-1 truncate text-sm text-text group-hover:text-accent transition-colors">
+            {prompt}
+          </dd>
         </div>
-        <div>
-          <dt className="text-xs text-slate-400">Research Object</dt>
-          <dd className="truncate font-mono text-xs text-slate-500">{research_object_id}</dd>
+        <div className="col-span-2">
+          <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+            RESEARCH OBJECT
+          </dt>
+          <dd className="mt-1 truncate font-mono text-xs text-muted">{research_object_id}</dd>
         </div>
       </dl>
     </Link>

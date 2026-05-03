@@ -2,28 +2,30 @@
 
 import { useState } from "react";
 import type { ProvenanceEvent, Result } from "@/lib/api/client";
+import { RunPipeline } from "@/components/runs/run-pipeline";
 
 type Props = {
   provenance: ProvenanceEvent[];
   results: Result[];
+  currentStage: string | null;
 };
 
 type Tab = "provenance" | "results";
 
-export function RunTabs({ provenance, results }: Props) {
+export function RunTabs({ provenance, results, currentStage }: Props) {
   const [active, setActive] = useState<Tab>("provenance");
 
   return (
     <div>
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-border">
         {(["provenance", "results"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActive(tab)}
-            className={`rounded-t-xl px-5 py-2.5 text-sm font-medium capitalize transition ${
+            className={`px-5 py-3 font-mono text-xs tracking-[0.2em] uppercase font-semibold transition-colors ${
               active === tab
-                ? "-mb-px border border-b-white border-slate-200 bg-white text-ink"
-                : "text-slate-500 hover:text-ink"
+                ? "text-accent border-b-2 border-accent -mb-px"
+                : "text-muted hover:text-text"
             }`}
           >
             {tab}
@@ -31,48 +33,97 @@ export function RunTabs({ provenance, results }: Props) {
         ))}
       </div>
 
-      <div className="mt-5">
-        {active === "provenance" && <ProvenanceTab events={provenance} />}
+      <div className="mt-6">
+        {active === "provenance" && (
+          <ProvenanceTab events={provenance} currentStage={currentStage} />
+        )}
         {active === "results" && <ResultsTab results={results} />}
       </div>
     </div>
   );
 }
 
-function ProvenanceTab({ events }: { events: ProvenanceEvent[] }) {
+function ProvenanceTab({
+  events,
+  currentStage,
+}: {
+  events: ProvenanceEvent[];
+  currentStage: string | null;
+}) {
   if (events.length === 0) {
-    return <p className="text-sm text-slate-500">No provenance events recorded yet.</p>;
+    return <p className="text-sm text-muted">No provenance events recorded yet.</p>;
   }
-  return (
-    <ol className="flex flex-col gap-2">
-      {events.map((event) => (
-        <li
-          key={event.event_id}
-          className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-3 text-sm"
-        >
-          <span className="font-medium text-slate-700">{event.event_type}</span>
-          <span className="ml-3 text-slate-400">{event.timestamp}</span>
-        </li>
-      ))}
-    </ol>
-  );
+  return <RunPipeline provenance={events} currentStage={currentStage} />;
 }
 
 function ResultsTab({ results }: { results: Result[] }) {
   if (results.length === 0) {
-    return <p className="text-sm text-slate-500">No results available yet.</p>;
+    return (
+      <p className="rounded-lg border border-dashed border-border bg-bg-card/50 px-5 py-12 text-center text-sm text-muted">
+        No results recorded for this run.
+      </p>
+    );
   }
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col gap-4">
       {results.map((result) => (
         <li
           key={result.result_id}
-          className="rounded-2xl border border-slate-200/80 bg-white/85 px-5 py-3 text-sm"
+          className="rounded-lg border border-border bg-bg-card px-5 py-5"
         >
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-slate-700">{result.summary}</p>
-            <span className="shrink-0 text-xs text-slate-400">{result.status}</span>
-          </div>
+          {result.edit_summary && (
+            <p className="text-sm text-text leading-relaxed">{result.edit_summary}</p>
+          )}
+
+          {(result.on_target_score != null || result.off_target_score != null) && (
+            <div className="mt-4 flex flex-wrap gap-8 border-t border-border pt-4">
+              {result.on_target_score != null && (
+                <div>
+                  <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+                    ON-TARGET EFFICIENCY
+                  </p>
+                  <p className="mt-1 font-serif-display italic text-2xl text-accent">
+                    {(result.on_target_score * 100).toFixed(0)}%
+                  </p>
+                </div>
+              )}
+              {result.off_target_score != null && (
+                <div>
+                  <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+                    OFF-TARGET RISK
+                  </p>
+                  <p className="mt-1 font-serif-display italic text-2xl text-text">
+                    {(result.off_target_score * 100).toFixed(0)}%
+                  </p>
+                </div>
+              )}
+              {result.reproducible && (
+                <div>
+                  <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+                    REPRODUCIBLE
+                  </p>
+                  <p className="mt-1 font-mono text-sm text-accent-green">✓ YES</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {result.edited_sequence && (
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
+                EDITED SEQUENCE
+              </p>
+              <p className="mt-2 font-mono text-xs text-text break-all">
+                {result.edited_sequence}
+              </p>
+            </div>
+          )}
+
+          {result.notes && (
+            <p className="mt-4 text-xs text-muted border-t border-border pt-4 italic">
+              {result.notes}
+            </p>
+          )}
         </li>
       ))}
     </ul>

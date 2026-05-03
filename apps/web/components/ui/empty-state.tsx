@@ -8,12 +8,12 @@ type EmptyStateProps = {
 
 export function EmptyState({ message, actionLabel, actionHref }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white/60 py-20 text-center">
-      <p className="text-slate-500">{message}</p>
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-bg-card/50 py-20 text-center">
+      <p className="text-muted">{message}</p>
       {actionLabel && actionHref && (
         <Link
           href={actionHref}
-          className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="mt-6 inline-flex font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded bg-text text-bg hover:bg-accent transition-colors"
         >
           {actionLabel}
         </Link>

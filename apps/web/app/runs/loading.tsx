@@ -2,11 +2,11 @@ import { LoadingState } from "@/components/ui/loading-state";
 
 export default function RunsLoading() {
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="h-8 w-16 animate-pulse rounded-full bg-slate-200" />
-      <div className="mt-8">
+    <section className="px-8 pt-12 pb-12 max-w-7xl mx-auto">
+      <div className="h-8 w-32 shimmer rounded bg-bg-card" />
+      <div className="mt-10">
         <LoadingState />
       </div>
-    </div>
+    </section>
   );
 }

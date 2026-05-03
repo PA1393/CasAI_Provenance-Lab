@@ -1,10 +1,10 @@
-export function LoadingState() {
+export function LoadingState({ count = 3 }: { count?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="h-32 animate-pulse rounded-3xl border border-slate-200/80 bg-slate-100"
+          className="shimmer h-32 rounded-lg border border-border bg-bg-card"
         />
       ))}
     </div>

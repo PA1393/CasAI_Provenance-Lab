@@ -1,49 +1,86 @@
 import Link from "next/link";
-
-const sections = [
-  {
-    title: "Research Objects",
-    description:
-      "Input gene sequences and store them as structured research objects with metadata and a stable hash.",
-    href: "/research-objects",
-    label: "View objects",
-  },
-  {
-    title: "Runs",
-    description:
-      "Start a simulation run on a research object and capture provenance, results, and status.",
-    href: "/runs",
-    label: "View runs",
-  },
-];
+import { Eyebrow } from "@/components/ui/eyebrow";
 
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="text-3xl font-semibold tracking-tight text-ink">
-        Research run tracking for CRISPR workflows
-      </h1>
-      <p className="mt-3 text-base leading-7 text-slate-600">
-        A clean scaffold for Provenance Lab — thin frontend, modular FastAPI backend.
-      </p>
-
-      <div className="mt-10 grid gap-5 sm:grid-cols-2">
-        {sections.map(({ title, description, href, label }) => (
-          <section
-            key={href}
-            className="rounded-3xl border border-slate-200/80 bg-white/85 p-6 shadow-sm"
+    <div className="min-h-[calc(100vh-80px)]">
+      {/* Hero */}
+      <section className="px-8 pt-16 pb-12 max-w-7xl mx-auto">
+        <Eyebrow>──── PROVENANCE LAB / V0.2</Eyebrow>
+        <h1 className="font-serif-display text-5xl md:text-6xl mt-6 max-w-4xl leading-tight">
+          Provenance-first <span className="italic text-accent">gene simulation,</span>
+          <br />
+          hashed and explained.
+        </h1>
+        <p className="mt-6 text-lg text-muted max-w-2xl italic">
+          The system of record for gene editing. Upload your inputs, run a simulation,
+          get a reproducible result.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            href="/research-objects/new"
+            className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded bg-text text-bg hover:bg-accent transition-colors"
           >
-            <h2 className="text-xl font-semibold text-ink">{title}</h2>
-            <p className="mt-3 leading-7 text-slate-600">{description}</p>
-            <Link
-              href={href}
-              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              {label}
-            </Link>
-          </section>
-        ))}
-      </div>
+            + New Research Object
+          </Link>
+          <Link
+            href="/research-objects"
+            className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded border border-border text-text hover:border-accent hover:text-accent transition-colors"
+          >
+            View Research Objects →
+          </Link>
+          <Link
+            href="/runs"
+            className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded border border-border text-text hover:border-accent hover:text-accent transition-colors"
+          >
+            View Runs →
+          </Link>
+        </div>
+      </section>
+
+      {/* Two-up section cards */}
+      <section className="px-8 max-w-7xl mx-auto pb-16">
+        <Eyebrow>──── WHAT YOU CAN DO</Eyebrow>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          <SectionCard
+            title="Research Objects"
+            description="Input gene sequences and store them as structured research objects with metadata and a stable content-addressable hash."
+            href="/research-objects"
+            label="View objects"
+          />
+          <SectionCard
+            title="Runs"
+            description="Start a simulation run on a research object and capture provenance, results, and status across the five-stage pipeline."
+            href="/runs"
+            label="View runs"
+          />
+        </div>
+      </section>
     </div>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  href,
+  label,
+}: {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-bg-card p-6">
+      <h2 className="font-serif-display italic text-2xl text-text">{title}</h2>
+      <p className="mt-3 leading-7 text-muted">{description}</p>
+      <Link
+        href={href}
+        className="mt-5 inline-flex font-mono text-xs tracking-[0.2em] uppercase font-semibold px-4 py-2 rounded border border-border text-text hover:border-accent hover:text-accent transition-colors"
+      >
+        {label} →
+      </Link>
+    </section>
   );
 }

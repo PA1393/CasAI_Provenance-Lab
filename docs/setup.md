@@ -100,7 +100,7 @@ Default backend URL: `http://127.0.0.1:8000`
 
 ## Cross-Platform Root Commands
 
-Once the backend virtual environment is activated and the editable install is complete, these root commands work on both Windows and macOS/Linux:
+Once the backend virtual environment has been created at `apps/api/.venv` and the editable install is complete, these root commands work from the repo root on both Windows and macOS/Linux:
 
 ```bash
 bun run dev:web
@@ -111,7 +111,7 @@ bun run test:api
 bun run check:api
 ```
 
-The API commands rely on `python` being on `PATH` through the active virtual environment.
+The API commands resolve `apps/api/.venv` directly instead of relying on `python` from `PATH`.
 
 ## Route Convention
 
