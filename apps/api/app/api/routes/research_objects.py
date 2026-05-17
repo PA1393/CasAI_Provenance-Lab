@@ -5,7 +5,13 @@ from app.modules.research_objects.service import (
     get_research_object,
     list_research_objects,
 )
-from app.schemas.research_objects import ResearchObject, ResearchObjectCreate, ResearchObjectsResponse
+from app.modules.runs.service import list_runs_by_research_object
+from app.schemas.research_objects import (
+    ResearchObject,
+    ResearchObjectCreate,
+    ResearchObjectsResponse,
+)
+from app.schemas.runs import Run, RunsResponse
 
 router = APIRouter(tags=["research_objects"])
 
@@ -29,3 +35,9 @@ def get_research_object_by_id(research_object_id: str) -> ResearchObject:
     if item is None:
         raise HTTPException(status_code=404, detail="Research object not found")
     return ResearchObject(**item)
+
+@router.get("/research-objects/{research_object_id}/runs", response_model=RunsResponse)
+def get_runs_by_research_object_id(research_object_id: str) -> RunsResponse:
+    items = list_runs_by_research_object(research_object_id)
+    return RunsResponse(items=[Run(**item) for item in items])
+
