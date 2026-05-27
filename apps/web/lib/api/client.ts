@@ -129,6 +129,13 @@ export async function createRun(data: RunCreate): Promise<Run> {
   });
 }
 
+export async function getRunsByResearchObject(researchObjectId: string): Promise<Run[]> {
+  const data = await apiFetch<{ items: Run[] }>(
+    `/api/v1/research-objects/${researchObjectId}/runs`,
+  );
+  return data.items;
+}
+
 // ─── Provenance ───────────────────────────────────────────────────────────────
 
 export async function getRunProvenance(runId: string): Promise<ProvenanceEvent[]> {

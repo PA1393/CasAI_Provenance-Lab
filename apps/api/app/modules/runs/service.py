@@ -161,3 +161,14 @@ def _build_mock_result(run_id: str, ro: dict) -> dict:
             f"QC passed ({reads_passing}/{reads_total} reads)."
         ),
     }
+
+def list_runs_by_research_object(research_object_id: str) -> list[dict]:
+    client = get_supabase()
+    response = (
+        client.table("runs")
+        .select("*")
+        .eq("research_object_id", research_object_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return response.data

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { getResearchObject } from "@/lib/api/client";
+import { getResearchObject, getRunsByResearchObject } from "@/lib/api/client";
 import { ResearchObjectSummary } from "@/components/research-objects/research-object-summary";
+import { RunCard } from "@/components/runs/run-card";
 import { StartRunForm } from "@/components/runs/start-run-form";
 import { ErrorState } from "@/components/ui/error-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -14,8 +15,12 @@ export default async function ResearchObjectPage({ params }: Props) {
   const { id } = await params;
 
   let researchObject;
+  let runs;
   try {
-    researchObject = await getResearchObject(id);
+    [researchObject, runs] = await Promise.all([
+      getResearchObject(id),
+      getRunsByResearchObject(id),
+    ]);
   } catch {
     return (
       <section className="px-8 pt-12 pb-12 max-w-4xl mx-auto">
@@ -48,6 +53,19 @@ export default async function ResearchObjectPage({ params }: Props) {
 
       <div className="mt-10">
         <ResearchObjectSummary researchObject={researchObject} />
+      </div>
+
+      <div className="mt-12 ">
+        <Eyebrow>──── RUNS</Eyebrow>
+        {runs.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">No runs yet.</p>
+        ) : (
+          <div className="mt-4 grid gap-3">
+            {runs.map((run) => (
+              <RunCard key={run.run_id} run={run} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
