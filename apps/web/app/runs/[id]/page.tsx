@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { getRun, getRunProvenance, getRunResults } from "@/lib/api/client";
+import {
+  getResearchObject,
+  getRun,
+  getRunProvenance,
+  getRunResults,
+} from "@/lib/api/client";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
 import { RunTabs } from "@/components/runs/run-tabs";
 import { ErrorState } from "@/components/ui/error-state";
@@ -29,10 +34,13 @@ export default async function RunPage({ params }: Props) {
     );
   }
 
-  const [provenance, results] = await Promise.all([
+  const [provenance, results, researchObject] = await Promise.all([
     getRunProvenance(id).catch(() => []),
     getRunResults(id).catch(() => []),
+    getResearchObject(run.research_object_id).catch(() => null),
   ]);
+
+  const editedSequence = results.find((r) => r.edited_sequence)?.edited_sequence ?? null;
 
   const completedAt = run.completed_at ? new Date(run.completed_at) : null;
   const startedAt = run.started_at ? new Date(run.started_at) : null;
@@ -42,7 +50,7 @@ export default async function RunPage({ params }: Props) {
       : null;
 
   return (
-    <section className="px-8 pt-12 pb-12 max-w-4xl mx-auto">
+    <section className="px-8 pt-12 pb-12 max-w-5xl mx-auto">
       <Link href="/runs" className="font-mono text-xs tracking-[0.2em] uppercase text-muted hover:text-accent transition-colors">
         ← ALL RUNS
       </Link>
@@ -99,7 +107,14 @@ export default async function RunPage({ params }: Props) {
       </dl>
 
       <div className="mt-10">
-        <RunTabs provenance={provenance} results={results} currentStage={run.current_stage} />
+        <RunTabs
+          provenance={provenance}
+          results={results}
+          currentStage={run.current_stage}
+          pdbId={researchObject?.pdb_id}
+          guideRna={run.guide_rna}
+          editedSequence={editedSequence}
+        />
       </div>
     </section>
   );

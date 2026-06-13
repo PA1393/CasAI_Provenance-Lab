@@ -3,22 +3,33 @@
 import { useState } from "react";
 import type { ProvenanceEvent, Result } from "@/lib/api/client";
 import { RunPipeline } from "@/components/runs/run-pipeline";
+import { RunSimulation } from "@/components/runs/simulation/run-simulation";
 
 type Props = {
   provenance: ProvenanceEvent[];
   results: Result[];
   currentStage: string | null;
+  pdbId?: string | null;
+  guideRna?: string | null;
+  editedSequence?: string | null;
 };
 
-type Tab = "provenance" | "results";
+type Tab = "simulation" | "provenance" | "results";
 
-export function RunTabs({ provenance, results, currentStage }: Props) {
-  const [active, setActive] = useState<Tab>("provenance");
+export function RunTabs({
+  provenance,
+  results,
+  currentStage,
+  pdbId,
+  guideRna,
+  editedSequence,
+}: Props) {
+  const [active, setActive] = useState<Tab>("simulation");
 
   return (
     <div>
       <div className="flex gap-1 border-b border-border">
-        {(["provenance", "results"] as Tab[]).map((tab) => (
+        {(["simulation", "provenance", "results"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActive(tab)}
@@ -34,6 +45,13 @@ export function RunTabs({ provenance, results, currentStage }: Props) {
       </div>
 
       <div className="mt-6">
+        {active === "simulation" && (
+          <RunSimulation
+            pdbId={pdbId}
+            guideRna={guideRna}
+            editedSequence={editedSequence}
+          />
+        )}
         {active === "provenance" && (
           <ProvenanceTab events={provenance} currentStage={currentStage} />
         )}
