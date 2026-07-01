@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.health import router as health_router
 from app.api.routes.provenance import router as provenance_router
+from app.api.routes.rag import router as rag_router
 from app.api.routes.research_objects import router as research_objects_router
 from app.api.routes.results import router as results_router
 from app.api.routes.runs import router as runs_router
@@ -23,3 +24,4 @@ app.include_router(runs_router, prefix=settings.api_prefix)
 app.include_router(research_objects_router, prefix=settings.api_prefix)
 app.include_router(provenance_router, prefix=settings.api_prefix)
 app.include_router(results_router, prefix=settings.api_prefix)
+app.include_router(rag_router, prefix=settings.api_prefix)
