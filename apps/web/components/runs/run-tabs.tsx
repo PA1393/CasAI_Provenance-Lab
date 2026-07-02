@@ -4,6 +4,18 @@ import { useState } from "react";
 import type { ProvenanceEvent, Result } from "@/lib/api/client";
 import { RunPipeline } from "@/components/runs/run-pipeline";
 import { RunSimulation } from "@/components/runs/simulation/run-simulation";
+import { RagSources } from "@/components/runs/rag-sources";
+
+type RagSource = {
+  chunk_id: string | null | undefined;
+  source_key: string;
+  chunk_text: string;
+  similarity: number | null | undefined;
+  source_path?: string | null;
+  source_url?: string | null;
+  source_title?: string | null;
+  source_type?: string | null;
+};
 
 type Props = {
   provenance: ProvenanceEvent[];
@@ -14,7 +26,15 @@ type Props = {
   editedSequence?: string | null;
 };
 
-type Tab = "simulation" | "provenance" | "results";
+type Tab = "simulation" | "provenance" | "results" | "sources";
+
+function extractRagSources(provenance: ProvenanceEvent[]): RagSource[] {
+  const simulateEvent = provenance.find((e) => e.stage === "simulate");
+  if (!simulateEvent?.payload) return [];
+  const sources = simulateEvent.payload["rag_sources"];
+  if (!Array.isArray(sources)) return [];
+  return sources as RagSource[];
+}
 
 export function RunTabs({
   provenance,
@@ -25,11 +45,12 @@ export function RunTabs({
   editedSequence,
 }: Props) {
   const [active, setActive] = useState<Tab>("simulation");
+  const ragSources = extractRagSources(provenance);
 
   return (
     <div>
       <div className="flex gap-1 border-b border-border">
-        {(["simulation", "provenance", "results"] as Tab[]).map((tab) => (
+        {(["simulation", "provenance", "results", "sources"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActive(tab)}
@@ -39,7 +60,7 @@ export function RunTabs({
                 : "text-muted hover:text-text"
             }`}
           >
-            {tab}
+            {tab === "sources" ? `sources${ragSources.length > 0 ? ` (${ragSources.length})` : ""}` : tab}
           </button>
         ))}
       </div>
@@ -56,6 +77,7 @@ export function RunTabs({
           <ProvenanceTab events={provenance} currentStage={currentStage} />
         )}
         {active === "results" && <ResultsTab results={results} />}
+        {active === "sources" && <RagSources sources={ragSources} />}
       </div>
     </div>
   );

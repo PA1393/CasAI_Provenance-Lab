@@ -151,3 +151,34 @@ export async function getRunResults(runId: string): Promise<Result[]> {
   const data = await apiFetch<{ items: Result[] }>(`/api/v1/runs/${runId}/results`);
   return data.items;
 }
+
+// ─── RAG ──────────────────────────────────────────────────────────────────────
+
+export type RagChunk = {
+  chunk_id: string;
+  source_key: string;
+  chunk_text: string;
+  metadata: Record<string, unknown> | null;
+  similarity: number;
+  source_path: string | null;
+  source_url: string | null;
+  source_title: string | null;
+  source_type: string | null;
+};
+
+export async function searchRag(
+  query: string,
+  matchCount = 3,
+  matchThreshold = 0.0,
+): Promise<RagChunk[]> {
+  const data = await apiFetch<{ items: RagChunk[] }>("/api/v1/rag/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query,
+      match_count: matchCount,
+      match_threshold: matchThreshold,
+    }),
+  });
+  return data.items;
+}

@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.db import get_supabase
+from app.modules.rag.service import search_vault
 
 
 def list_runs() -> list[dict]:
@@ -45,7 +46,8 @@ def create_run(research_object_id: str, prompt: str) -> dict:
     run = run_response.data[0]
     run_id = run["run_id"]
 
-    events = _build_mock_provenance_events(run_id, ro, prompt, base_time=now)
+    rag_sources = search_vault(query=prompt, match_count=5)
+    events = _build_mock_provenance_events(run_id, ro, prompt, base_time=now, rag_sources=rag_sources)
     client.table("provenance_events").insert(events).execute()
 
     result = _build_mock_result(run_id, ro)
@@ -63,7 +65,7 @@ def create_run(research_object_id: str, prompt: str) -> dict:
 
 
 def _build_mock_provenance_events(
-    run_id: str, ro: dict, prompt: str, base_time: datetime
+    run_id: str, ro: dict, prompt: str, base_time: datetime, rag_sources: list[dict] | None = None
 ) -> list[dict]:
     pdb_id = ro.get("pdb_id", "UNKNOWN")
     stages = [
@@ -106,6 +108,15 @@ def _build_mock_provenance_events(
                 "sequence_length": ro.get("sequence_length", 0),
                 "on_target_score": 0.87,
                 "off_target_score": 0.05,
+                "rag_sources": [
+                    {
+                        "chunk_id": s.get("chunk_id"),
+                        "source_key": s.get("source_key"),
+                        "chunk_text": s.get("chunk_text"),
+                        "similarity": s.get("similarity"),
+                    }
+                    for s in (rag_sources or [])
+                ],
             },
         ),
         (
