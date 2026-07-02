@@ -160,12 +160,16 @@ export type RagChunk = {
   chunk_text: string;
   metadata: Record<string, unknown> | null;
   similarity: number;
+  source_path: string | null;
+  source_url: string | null;
+  source_title: string | null;
+  source_type: string | null;
 };
 
 export async function searchRag(
   query: string,
-  matchCount = 6,
-  matchThreshold = 0.7,
+  matchCount = 3,
+  matchThreshold = 0.0,
 ): Promise<RagChunk[]> {
   const data = await apiFetch<{ items: RagChunk[] }>("/api/v1/rag/search", {
     method: "POST",

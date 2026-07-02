@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-import google.generativeai as genai
+from openai import OpenAI
 
 from app.core.config import settings
 from app.db import get_supabase
@@ -11,31 +11,19 @@ logger = logging.getLogger(__name__)
 
 
 def embed_query(text: str) -> list[float] | None:
-    """Return a 1536-dim embedding for *text* using Gemini text-embedding-004.
-    Returns None if GEMINI_API_KEY is not configured."""
-    if not settings.gemini_api_key:
-        logger.warning("GEMINI_API_KEY not set — RAG search skipped")
+    if not settings.openai_api_key:
+        logger.warning("OPENAI_API_KEY not set — RAG search skipped")
         return None
-    genai.configure(api_key=settings.gemini_api_key)
-    result = genai.embed_content(
-        model="models/gemini-embedding-001",
-        content=text,
-        output_dimensionality=1536,
-    )
-    return result["embedding"]
+    client = OpenAI(api_key=settings.openai_api_key)
+    response = client.embeddings.create(model="text-embedding-3-small", input=text)
+    return response.data[0].embedding
 
 
 def search_vault(
     query: str,
-    match_count: int = 6,
+    match_count: int = 3,
     match_threshold: float = 0.0,
 ) -> list[dict]:
-    """
-    Embed *query* then call the match_vault_chunks RPC in Supabase.
-
-    Returns chunk dicts with keys: chunk_id, source_key, chunk_text, metadata, similarity.
-    Returns an empty list gracefully when embeddings are unavailable or the RPC fails.
-    """
     embedding = embed_query(query)
     if embedding is None:
         return []

@@ -11,6 +11,10 @@ type RagSource = {
   source_key: string;
   chunk_text: string;
   similarity: number | null | undefined;
+  source_path?: string | null;
+  source_url?: string | null;
+  source_title?: string | null;
+  source_type?: string | null;
 };
 
 type Props = {
