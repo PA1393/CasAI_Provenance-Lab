@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from app.db import get_supabase
-from app.modules.rag.service import search_vault
+from app.modules.rag.service import generate_answer, search_vault
 
 
 def list_runs() -> list[dict]:
@@ -47,7 +47,10 @@ def create_run(research_object_id: str, prompt: str) -> dict:
     run_id = run["run_id"]
 
     rag_sources = search_vault(query=prompt, match_count=5)
-    events = _build_mock_provenance_events(run_id, ro, prompt, base_time=now, rag_sources=rag_sources)
+    rag_answer = generate_answer(query=prompt, chunks=rag_sources)
+    events = _build_mock_provenance_events(
+        run_id, ro, prompt, base_time=now, rag_sources=rag_sources, rag_answer=rag_answer
+    )
     client.table("provenance_events").insert(events).execute()
 
     result = _build_mock_result(run_id, ro)
@@ -65,7 +68,12 @@ def create_run(research_object_id: str, prompt: str) -> dict:
 
 
 def _build_mock_provenance_events(
-    run_id: str, ro: dict, prompt: str, base_time: datetime, rag_sources: list[dict] | None = None
+    run_id: str,
+    ro: dict,
+    prompt: str,
+    base_time: datetime,
+    rag_sources: list[dict] | None = None,
+    rag_answer: str | None = None,
 ) -> list[dict]:
     pdb_id = ro.get("pdb_id", "UNKNOWN")
     stages = [
@@ -108,12 +116,17 @@ def _build_mock_provenance_events(
                 "sequence_length": ro.get("sequence_length", 0),
                 "on_target_score": 0.87,
                 "off_target_score": 0.05,
+                "rag_answer": rag_answer,
                 "rag_sources": [
                     {
                         "chunk_id": s.get("chunk_id"),
                         "source_key": s.get("source_key"),
                         "chunk_text": s.get("chunk_text"),
                         "similarity": s.get("similarity"),
+                        "source_path": s.get("source_path"),
+                        "source_url": s.get("source_url"),
+                        "source_title": s.get("source_title"),
+                        "source_type": s.get("source_type"),
                     }
                     for s in (rag_sources or [])
                 ],

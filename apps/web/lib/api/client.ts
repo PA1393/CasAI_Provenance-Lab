@@ -182,3 +182,24 @@ export async function searchRag(
   });
   return data.items;
 }
+
+export type RagAnswer = {
+  answer: string | null;
+  sources: RagChunk[];
+};
+
+export async function askRag(
+  query: string,
+  matchCount = 3,
+  matchThreshold = 0.0,
+): Promise<RagAnswer> {
+  return apiFetch<RagAnswer>("/api/v1/rag/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query,
+      match_count: matchCount,
+      match_threshold: matchThreshold,
+    }),
+  });
+}

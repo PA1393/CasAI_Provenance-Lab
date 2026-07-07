@@ -36,6 +36,12 @@ function extractRagSources(provenance: ProvenanceEvent[]): RagSource[] {
   return sources as RagSource[];
 }
 
+function extractRagAnswer(provenance: ProvenanceEvent[]): string | null {
+  const simulateEvent = provenance.find((e) => e.stage === "simulate");
+  const answer = simulateEvent?.payload?.["rag_answer"];
+  return typeof answer === "string" ? answer : null;
+}
+
 export function RunTabs({
   provenance,
   results,
@@ -46,6 +52,7 @@ export function RunTabs({
 }: Props) {
   const [active, setActive] = useState<Tab>("simulation");
   const ragSources = extractRagSources(provenance);
+  const ragAnswer = extractRagAnswer(provenance);
 
   return (
     <div>
@@ -77,7 +84,9 @@ export function RunTabs({
           <ProvenanceTab events={provenance} currentStage={currentStage} />
         )}
         {active === "results" && <ResultsTab results={results} />}
-        {active === "sources" && <RagSources sources={ragSources} />}
+        {active === "sources" && (
+          <RagSources sources={ragSources} answer={ragAnswer} />
+        )}
       </div>
     </div>
   );

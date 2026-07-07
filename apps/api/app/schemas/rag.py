@@ -28,3 +28,19 @@ class RagChunk(BaseModel):
 
 class RagSearchResponse(BaseModel):
     items: list[RagChunk]
+
+
+class RagAskRequest(BaseModel):
+    query: str
+    match_count: int = 3
+    match_threshold: float = 0.0
+
+    @field_validator("match_count")
+    @classmethod
+    def cap_match_count(cls, v: int) -> int:
+        return min(v, _MAX_MATCH_COUNT)
+
+
+class RagAskResponse(BaseModel):
+    answer: str | None
+    sources: list[RagChunk]
