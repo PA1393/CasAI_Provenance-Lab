@@ -14,9 +14,13 @@ def embed_query(text: str) -> list[float] | None:
     if not settings.openai_api_key:
         logger.warning("OPENAI_API_KEY not set — RAG search skipped")
         return None
-    client = OpenAI(api_key=settings.openai_api_key)
-    response = client.embeddings.create(model="text-embedding-3-small", input=text)
-    return response.data[0].embedding
+    try:
+        client = OpenAI(api_key=settings.openai_api_key)
+        response = client.embeddings.create(model="text-embedding-3-small", input=text)
+        return response.data[0].embedding
+    except Exception as exc:
+        logger.warning("query embedding failed: %s", exc)
+        return None
 
 
 def search_vault(
