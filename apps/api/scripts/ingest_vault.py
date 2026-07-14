@@ -107,24 +107,47 @@ def first_url(body: str, meta: dict[str, str]) -> str | None:
 
 # ─── chunking ────────────────────────────────────────────────────────────────
 
-def chunk_body(body: str, max_tokens: int) -> list[str]:
+_HEADING = re.compile(r"^#{1,6}\s+(.*\S)\s*$")
+
+
+def _heading_text(paragraph: str) -> str | None:
+    """Return the heading text if this paragraph is a single Markdown heading line."""
+    if "\n" in paragraph:
+        return None
+    m = _HEADING.match(paragraph)
+    return m.group(1).strip() if m else None
+
+
+def chunk_body(body: str, max_tokens: int) -> list[tuple[str, str | None]]:
     """
-    Greedily pack paragraphs (blank-line separated) into chunks under
-    max_tokens. A single oversized paragraph is hard-split on whitespace.
+    Greedily pack paragraphs (blank-line separated) into chunks under max_tokens.
+    A single oversized paragraph is hard-split on whitespace.
+
+    Returns (chunk_text, heading) pairs, where heading is the nearest Markdown
+    heading at or above the start of that chunk (section context). Heading lines
+    are kept inline in chunk_text; the heading is also surfaced separately.
     """
     paragraphs = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
-    chunks: list[str] = []
+    chunks: list[tuple[str, str | None]] = []
     current: list[str] = []
     current_tokens = 0
+    current_heading: str | None = None   # most recent heading seen
+    chunk_heading: str | None = None      # heading active when this chunk started
 
     def flush() -> None:
         nonlocal current, current_tokens
         if current:
-            chunks.append("\n\n".join(current))
+            chunks.append(("\n\n".join(current), chunk_heading))
             current = []
             current_tokens = 0
 
     for para in paragraphs:
+        head = _heading_text(para)
+        if head is not None:
+            current_heading = head
+        if not current:                   # starting a new chunk
+            chunk_heading = current_heading
+
         tokens = count_tokens(para)
         if tokens > max_tokens:
             flush()
@@ -133,18 +156,38 @@ def chunk_body(body: str, max_tokens: int) -> list[str]:
             for word in words:
                 buf.append(word)
                 if count_tokens(" ".join(buf)) >= max_tokens:
-                    chunks.append(" ".join(buf))
+                    chunks.append((" ".join(buf), current_heading))
                     buf = []
             if buf:
-                chunks.append(" ".join(buf))
+                chunks.append((" ".join(buf), current_heading))
             continue
         if current_tokens + tokens > max_tokens:
             flush()
+            chunk_heading = current_heading
         current.append(para)
         current_tokens += tokens
 
     flush()
     return chunks
+
+
+def build_keywords(meta: dict[str, str]) -> list[str]:
+    """Derive a de-duplicated tag list from the note's frontmatter."""
+    tags: list[str] = []
+    for key in ("crop", "organism", "gene_target", "editing_method", "regulator", "region"):
+        value = meta.get(key)
+        if value:
+            tags.append(value)
+    for key in ("techniques", "crops"):     # frontmatter inline lists, e.g. [crispr, base-editing]
+        value = meta.get(key)
+        if value:
+            tags.extend(part for part in value.split(","))
+    seen: list[str] = []
+    for tag in tags:
+        tag = tag.strip().lower()
+        if tag and tag not in seen:
+            seen.append(tag)
+    return seen
 
 
 # ─── main ────────────────────────────────────────────────────────────────────
@@ -163,9 +206,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest Markdown into the RAG vault.")
     parser.add_argument("--vault-dir", required=True, help="Root folder of Markdown notes.")
     parser.add_argument("--batch", default="cropvault_ingest_v1", help="Batch label stored in metadata.")
-    parser.add_argument("--max-tokens", type=int, default=500, help="Max tokens per chunk.")
+    parser.add_argument("--max-tokens", type=int, default=250,
+                        help="Max tokens per chunk (smaller = more, section-level chunks).")
     parser.add_argument("--keep-frontmatter", action="store_true",
                         help="Keep YAML frontmatter in chunk_text (default: strip it).")
+    parser.add_argument("--replace", action="store_true",
+                        help="Re-chunk sources that already have chunks (default: skip them, "
+                             "so existing embedded chunks are never deleted).")
     parser.add_argument("--dry-run", action="store_true", help="Parse and report; write nothing.")
     args = parser.parse_args()
 
@@ -186,10 +233,20 @@ def main() -> None:
     if _ENC is None:
         print("! tiktoken not installed - token counts are estimates (pip install tiktoken)")
 
+    # Which sources already have chunks? Default behaviour SKIPS these so that
+    # existing (possibly embedded) chunks are never deleted. Use --replace to
+    # deliberately re-chunk them.
+    existing_keys: set[str] = set()
+    if supabase is not None and not args.replace:
+        resp = supabase.table("vault_chunks").select("source_key").execute()
+        existing_keys = {r["source_key"] for r in (resp.data or [])}
+        print(f"{len(existing_keys)} source(s) already have chunks — will skip (use --replace to rebuild)")
+
     md_files = sorted(vault_dir.rglob("*.md"))
     print(f"Found {len(md_files)} Markdown files under {vault_dir}")
 
     total_chunks = 0
+    skipped = 0
     for path in md_files:
         rel_forward = path.relative_to(vault_dir).as_posix()          # crops/maize.md
         rel_backslash = rel_forward.replace("/", "\\")                # crops\maize.md
@@ -219,13 +276,16 @@ def main() -> None:
             },
         }
 
-        chunk_texts = chunk_body(chunk_source, args.max_tokens)
+        keywords = build_keywords(meta) or None
+        chunks = chunk_body(chunk_source, args.max_tokens)
         chunk_rows = [
             {
                 "source_key": key,
                 "chunk_index": i,
                 "chunk_text": text,
                 "token_count": count_tokens(text),
+                "heading": heading,
+                "keywords": keywords,
                 "metadata": {
                     "ingest_batch": args.batch,
                     "source_title": name,
@@ -233,8 +293,14 @@ def main() -> None:
                     "source_url": url,
                 },
             }
-            for i, text in enumerate(chunk_texts)
+            for i, (text, heading) in enumerate(chunks)
         ]
+
+        # Non-destructive: skip a source that already has chunks unless --replace.
+        if key in existing_keys:
+            print(f"  {rel_forward:40} -> skip (already has chunks)")
+            skipped += 1
+            continue
 
         print(f"  {rel_forward:40} -> {len(chunk_rows)} chunk(s)")
         total_chunks += len(chunk_rows)
@@ -244,13 +310,16 @@ def main() -> None:
 
         assert supabase is not None
         supabase.table("vault_sources").upsert(source_row, on_conflict="source_key").execute()
+        # delete() only matters under --replace (existing_keys is empty otherwise),
+        # so this never removes chunks we intend to keep.
         supabase.table("vault_chunks").delete().eq("source_key", key).execute()
         if chunk_rows:
             supabase.table("vault_chunks").insert(chunk_rows).execute()
 
     verb = "would write" if args.dry_run else "wrote"
-    print(f"\nDone. {verb} {len(md_files)} sources and {total_chunks} chunks.")
-    if not args.dry_run:
+    print(f"\nDone. {verb} {total_chunks} chunks across {len(md_files) - skipped} sources"
+          f" ({skipped} skipped as already-populated).")
+    if not args.dry_run and total_chunks:
         print("Next: python scripts/embed_vault_chunks.py  (fills embeddings for new chunks)")
 
 

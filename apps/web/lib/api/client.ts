@@ -158,6 +158,8 @@ export type RagChunk = {
   chunk_id: string;
   source_key: string;
   chunk_text: string;
+  heading: string | null;
+  keywords: string[] | null;
   metadata: Record<string, unknown> | null;
   similarity: number;
   source_path: string | null;
@@ -169,7 +171,7 @@ export type RagChunk = {
 export async function searchRag(
   query: string,
   matchCount = 3,
-  matchThreshold = 0.0,
+  matchThreshold = 0.2,
 ): Promise<RagChunk[]> {
   const data = await apiFetch<{ items: RagChunk[] }>("/api/v1/rag/search", {
     method: "POST",
@@ -191,7 +193,7 @@ export type RagAnswer = {
 export async function askRag(
   query: string,
   matchCount = 3,
-  matchThreshold = 0.0,
+  matchThreshold = 0.2,
 ): Promise<RagAnswer> {
   return apiFetch<RagAnswer>("/api/v1/rag/ask", {
     method: "POST",

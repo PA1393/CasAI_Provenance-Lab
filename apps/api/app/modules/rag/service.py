@@ -26,7 +26,7 @@ def embed_query(text: str) -> list[float] | None:
 def search_vault(
     query: str,
     match_count: int = 3,
-    match_threshold: float = 0.0,
+    match_threshold: float = 0.2,
 ) -> list[dict]:
     embedding = embed_query(query)
     if embedding is None:
@@ -67,6 +67,9 @@ def _format_context(chunks: list[dict]) -> str:
             or chunk.get("source_key")
             or "source"
         )
+        heading = chunk.get("heading")
+        if heading:
+            label = f"{label} — {heading}"
         text = (chunk.get("chunk_text") or "").strip()
         blocks.append(f"[{i}] {label}\n{text}")
     return "\n\n".join(blocks)
@@ -108,7 +111,7 @@ def generate_answer(query: str, chunks: list[dict]) -> str | None:
 def answer_query(
     query: str,
     match_count: int = 3,
-    match_threshold: float = 0.0,
+    match_threshold: float = 0.2,
 ) -> dict:
     """Retrieve context then generate a grounded answer. Returns answer + sources."""
     chunks = search_vault(

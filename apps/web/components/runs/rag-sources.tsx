@@ -3,6 +3,8 @@ type RagSource = {
   source_key: string;
   chunk_text: string;
   similarity: number | null | undefined;
+  heading?: string | null;
+  keywords?: string[] | null;
   source_path?: string | null;
   source_url?: string | null;
   source_title?: string | null;
@@ -48,6 +50,9 @@ export function RagSources({ sources, answer }: Props) {
                   <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-accent font-semibold truncate">
                     {source.source_title ?? source.source_path ?? source.source_key}
                   </p>
+                  {source.heading && (
+                    <p className="text-[11px] text-text/80 truncate">{source.heading}</p>
+                  )}
                   {source.source_type && (
                     <p className="font-mono text-[9px] tracking-[0.15em] uppercase text-muted">
                       {source.source_type}

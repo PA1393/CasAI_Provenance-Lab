@@ -6,7 +6,7 @@ _MAX_MATCH_COUNT = 5
 class RagSearchRequest(BaseModel):
     query: str
     match_count: int = 3
-    match_threshold: float = 0.0
+    match_threshold: float = 0.2
 
     @field_validator("match_count")
     @classmethod
@@ -18,6 +18,8 @@ class RagChunk(BaseModel):
     chunk_id: str
     source_key: str
     chunk_text: str
+    heading: str | None = None
+    keywords: list[str] | None = None
     metadata: dict | None = None
     similarity: float
     source_path: str | None = None
@@ -33,7 +35,7 @@ class RagSearchResponse(BaseModel):
 class RagAskRequest(BaseModel):
     query: str
     match_count: int = 3
-    match_threshold: float = 0.0
+    match_threshold: float = 0.2
 
     @field_validator("match_count")
     @classmethod

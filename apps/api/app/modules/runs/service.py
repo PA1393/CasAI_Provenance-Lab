@@ -123,6 +123,8 @@ def _build_mock_provenance_events(
                         "source_key": s.get("source_key"),
                         "chunk_text": s.get("chunk_text"),
                         "similarity": s.get("similarity"),
+                        "heading": s.get("heading"),
+                        "keywords": s.get("keywords"),
                         "source_path": s.get("source_path"),
                         "source_url": s.get("source_url"),
                         "source_title": s.get("source_title"),
