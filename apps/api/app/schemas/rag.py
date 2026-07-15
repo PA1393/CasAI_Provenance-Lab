@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 _MAX_MATCH_COUNT = 5
 
@@ -6,13 +6,12 @@ _MAX_MATCH_COUNT = 5
 class RagSearchRequest(BaseModel):
     query: str
     match_count: int = 3
-    match_threshold: float = 0.0
+    match_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
 
     @field_validator("match_count")
     @classmethod
     def cap_match_count(cls, v: int) -> int:
         return min(v, _MAX_MATCH_COUNT)
-
 
 class RagChunk(BaseModel):
     chunk_id: str
@@ -25,22 +24,17 @@ class RagChunk(BaseModel):
     source_title: str | None = None
     source_type: str | None = None
 
-
 class RagSearchResponse(BaseModel):
     items: list[RagChunk]
 
-
-class RagAskRequest(BaseModel):
-    query: str
-    match_count: int = 3
-    match_threshold: float = 0.0
-
-    @field_validator("match_count")
-    @classmethod
-    def cap_match_count(cls, v: int) -> int:
-        return min(v, _MAX_MATCH_COUNT)
-
+class RagAskRequest(RagSearchRequest):
+    """Same fields and validation as RagSearchRequest; kept as its own
+    type so the /rag/ask endpoint has a distinct schema to evolve
+    independently if needed."""
 
 class RagAskResponse(BaseModel):
+    # `answer` is None when the OpenAI API key is missing, no matching
+    # chunks were retrieved, or generation failed. Callers must handle
+    # the null case rather than assuming an answer is always present.
     answer: str | None
     sources: list[RagChunk]
