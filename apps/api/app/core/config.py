@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     openai_api_key: str = ""
     openai_chat_model: str = "gpt-4o-mini"
+    # RAG retrieval similarity floor — single source of truth for the default.
+    # Measured against the live vault: relevant crop/technique/regulator queries
+    # score ~0.55-0.73, off-topic queries top out ~0.17, so 0.25 drops noise
+    # without trimming real matches. A tuned starting point; override with
+    # RAG_MATCH_THRESHOLD in .env.
+    rag_match_threshold: float = 0.25
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,
