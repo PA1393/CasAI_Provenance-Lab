@@ -6,7 +6,7 @@ _MAX_MATCH_COUNT = 5
 class RagSearchRequest(BaseModel):
     query: str
     match_count: int = 3
-    match_threshold: float = 0.0
+    match_threshold: float = 0.25
 
     @field_validator("match_count")
     @classmethod
@@ -33,7 +33,7 @@ class RagSearchResponse(BaseModel):
 class RagAskRequest(BaseModel):
     query: str
     match_count: int = 3
-    match_threshold: float = 0.0
+    match_threshold: float = 0.25
 
     @field_validator("match_count")
     @classmethod
