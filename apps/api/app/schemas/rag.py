@@ -1,12 +1,14 @@
 from pydantic import BaseModel, Field, field_validator
 
+from app.core.config import settings
+
 _MAX_MATCH_COUNT = 5
 
 
 class RagSearchRequest(BaseModel):
     query: str
     match_count: int = 3
-    match_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
+    match_threshold: float = Field(default=settings.rag_match_threshold, ge=0.0, le=1.0)
 
     @field_validator("match_count")
     @classmethod

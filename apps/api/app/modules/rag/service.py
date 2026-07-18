@@ -26,7 +26,7 @@ def embed_query(text: str) -> list[float] | None:
 def search_vault(
     query: str,
     match_count: int = 3,
-    match_threshold: float = 0.0,
+    match_threshold: float = settings.rag_match_threshold,
 ) -> list[dict]:
     embedding = embed_query(query)
     if embedding is None:
@@ -108,7 +108,7 @@ def generate_answer(query: str, chunks: list[dict]) -> str | None:
 def answer_query(
     query: str,
     match_count: int = 3,
-    match_threshold: float = 0.0,
+    match_threshold: float = settings.rag_match_threshold,
 ) -> dict:
     """Retrieve context then generate a grounded answer. Returns answer + sources."""
     chunks = search_vault(
