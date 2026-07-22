@@ -1,5 +1,12 @@
-# Analysis agent (S5) — turns a prompt + retrieved vault context into a concrete
-# base-edit spec the engine can apply.
+# Analysis agent (S5) — FIRST SCAFFOLD.
+#
+# Turns a prompt + retrieved vault context into a *candidate* base-edit spec (edit intent
+# + a compatible guide site) which the engine can apply. design_guide() currently finds a
+# base-editor-COMPATIBLE candidate guide but does NOT validate biological effect, off-target
+# risk, codon consequence, knockout status, or gene-specific targeting — those are later
+# layers. Keep this module STANDALONE: do not wire it into create_run() / the run pipeline
+# until the base engine merges, EditSpec has a validation gate, and we've decided how the
+# output maps into the provenance + simulation schema.
 #
 #   design_guide()       — deterministic guide design (pure).
 #   _extract_intent()    — LLM intent extraction, grounded in retrieved chunks.
@@ -35,10 +42,11 @@ _INTENT_SYSTEM = (
     "From the user's request and the numbered context passages, determine the intended edit. "
     "Respond with STRICT JSON only, with exactly these keys: "
     '"organism" (string or null), "gene" (string or null), '
-    '"edit_type" ("CBE" for a C->T change or "ABE" for an A->G change), '
+    '"edit_type" ("CBE" for a C->T change, "ABE" for an A->G change, or null if unclear), '
     '"rationale" (one sentence grounded in the context, citing passages like [1]). '
-    "Infer edit_type from the requested base change; if unclear, pick the most likely. "
-    "Use only the provided context for organism/gene — do not invent facts."
+    "Do NOT guess missing biological details. If the organism, gene, or edit type is not "
+    "supported by the provided context, return null for that field and say what is missing "
+    "in the rationale. Use only the provided context — do not invent facts."
 )
 
 
@@ -47,7 +55,7 @@ class EditSpec(BaseModel):
     engine. Stored on the run so re-runs are deterministic."""
 
     edit_type: str  # "CBE" (C->T) or "ABE" (A->G)
-    guide_rna: str  # 20-nt spacer, designed against the real sequence
+    guide_rna: str  # candidate 20-nt base-editor-compatible spacer (not validated/optimal)
     strand: str  # "+" or "-"
     window: tuple[int, int] = (4, 8)
     pam: str = "NGG"
@@ -72,12 +80,16 @@ def design_guide(
     window: tuple[int, int] = (4, 8),
     pam: str = "NGG",
 ) -> dict | None:
-    """Find a 20-nt guide in *sequence* that the given base editor can actually use.
+    """Find a *candidate* base-editor-compatible guide site in *sequence*.
 
     Returns the first site (sense strand first, then antisense) with a valid *pam*
     immediately 3' AND an editable base (C for CBE, A for ABE) inside the editing
-    *window* — which guarantees the engine will produce an edit there. The returned
-    ``guide_rna`` is the protospacer in its own 5'->3' orientation. None if no site.
+    *window*, as ``{guide_rna, strand}`` (protospacer in 5'->3'); None if no site.
+
+    "Compatible" only means the site is edit-able — it does NOT prove the edit causes a
+    knockout, hits a stop codon, disrupts a splice site, changes the intended codon, is
+    off-target-safe, or that the named gene is actually present in the sequence. This is
+    a candidate site, not a validated or biologically optimal guide.
     """
     edit_type = edit_type.upper()
     if edit_type not in _TARGET:
@@ -143,11 +155,14 @@ def resolve_edit_spec(
 
     et = (edit_type or intent.get("edit_type") or "").upper()
     if et not in _TARGET:
-        raise ValueError(f"unsupported edit_type {et!r} (expected CBE or ABE)")
+        raise ValueError(
+            f"edit type unclear or unsupported ({et!r}); the request and retrieved context "
+            "did not clearly indicate CBE (C->T) or ABE (A->G) — not guessing"
+        )
 
     design = design_guide(sequence, et)
     if design is None:
-        raise ValueError(f"no usable {et} guide site found in the provided sequence")
+        raise ValueError(f"no candidate {et}-compatible guide site found in the sequence")
 
     return EditSpec(
         edit_type=et,
