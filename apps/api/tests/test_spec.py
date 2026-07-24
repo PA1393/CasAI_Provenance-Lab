@@ -56,3 +56,61 @@ def test_design_guide_skips_ambiguous_protospacer() -> None:
     seq = "TTTT" + guide_n + "AGG" + "TTTT"
     # the only PAM-flanked site is skipped because of the N -> no candidate found
     assert spec.design_guide(seq, "CBE") is None
+
+
+# ── Validate Schema gate ─────────────────────────────────────────────────────
+def _valid_spec_and_seq():
+    seq = _seq(GUIDE_C)
+    d = spec.design_guide(seq, "CBE")
+    return spec.EditSpec(edit_type="CBE", guide_rna=d["guide_rna"], strand=d["strand"]), seq
+
+
+def test_validate_passes_for_valid_spec() -> None:
+    edit_spec, seq = _valid_spec_and_seq()
+    assert spec.validate_edit_spec(edit_spec, seq) == []
+
+
+def test_validate_flags_bad_guide_length() -> None:
+    edit_spec = spec.EditSpec(edit_type="CBE", guide_rna="AAA", strand="+")
+    assert spec.validate_edit_spec(edit_spec, "ACGT" * 20)
+
+
+def test_validate_flags_non_acgt_guide() -> None:
+    edit_spec = spec.EditSpec(edit_type="CBE", guide_rna="AAACANAAAAAAAAAAAAAA", strand="+")
+    assert spec.validate_edit_spec(edit_spec, "ACGT" * 20)
+
+
+def test_validate_flags_bad_edit_type() -> None:
+    edit_spec, seq = _valid_spec_and_seq()
+    edit_spec.edit_type = "XYZ"
+    assert spec.validate_edit_spec(edit_spec, seq)
+
+
+def test_validate_flags_bad_strand() -> None:
+    edit_spec, seq = _valid_spec_and_seq()
+    edit_spec.strand = "x"
+    assert spec.validate_edit_spec(edit_spec, seq)
+
+
+def test_validate_flags_window_out_of_range() -> None:
+    edit_spec, seq = _valid_spec_and_seq()
+    edit_spec.window = (0, 8)
+    assert spec.validate_edit_spec(edit_spec, seq)
+
+
+def test_validate_flags_guide_not_in_sequence() -> None:
+    edit_spec, _ = _valid_spec_and_seq()
+    assert spec.validate_edit_spec(edit_spec, "T" * 40)  # guide absent -> not applicable
+
+
+def test_validate_flags_no_editable_base_in_window() -> None:
+    guide = "A" * 20  # no C anywhere -> no editable C for CBE in the window
+    seq = "TTTT" + guide + "AGG" + "TTTT"
+    edit_spec = spec.EditSpec(edit_type="CBE", guide_rna=guide, strand="+")
+    assert spec.validate_edit_spec(edit_spec, seq)
+
+
+def test_validate_flags_malformed_window_without_crashing() -> None:
+    edit_spec, seq = _valid_spec_and_seq()
+    edit_spec.window = (1, 2, 3)  # not a (lo, hi) pair -> flagged, not a crash
+    assert spec.validate_edit_spec(edit_spec, seq)

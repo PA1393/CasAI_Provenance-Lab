@@ -172,3 +172,65 @@ def resolve_edit_spec(
         gene=intent.get("gene"),
         rationale=intent.get("rationale"),
     )
+
+
+def _guide_occurs_with_pam(strand_seq: str, guide: str, pam: str) -> bool:
+    """Does *guide* occur in *strand_seq* with a valid *pam* immediately 3'?"""
+    start = 0
+    while True:
+        i = strand_seq.find(guide, start)
+        if i == -1:
+            return False
+        segment = strand_seq[i + _GUIDE_LEN : i + _GUIDE_LEN + len(pam)]
+        if _pam_matches(segment, pam):
+            return True
+        start = i + 1
+
+
+def validate_edit_spec(spec: EditSpec, sequence: str) -> list[str]:
+    """The "Validate Schema" gate — deterministically check that *spec* is internally
+    consistent AND actually applicable to *sequence*.
+
+    Returns a list of problems; an empty list means the spec is valid. Each problem is a
+    plain string so it can be recorded in provenance. No LLM. This gate should pass before
+    an EditSpec is ever handed to the engine / run pipeline.
+    """
+    problems: list[str] = []
+    guide = spec.guide_rna.upper()
+
+    # --- structural checks ---
+    if len(guide) != _GUIDE_LEN or set(guide) - _ACGT:
+        problems.append(f"guide_rna must be {_GUIDE_LEN} nt of A/C/G/T")
+    if spec.edit_type not in _TARGET:
+        problems.append(f"edit_type must be CBE or ABE (got {spec.edit_type!r})")
+    if spec.strand not in ("+", "-"):
+        problems.append(f"strand must be '+' or '-' (got {spec.strand!r})")
+    w_lo, w_hi = 0, 0
+    if not isinstance(spec.window, (tuple, list)) or len(spec.window) != 2:
+        problems.append(f"window must be a (lo, hi) pair (got {spec.window!r})")
+    else:
+        w_lo, w_hi = spec.window
+        if not (1 <= w_lo <= w_hi <= _GUIDE_LEN):
+            problems.append(f"window {spec.window} must satisfy 1 <= lo <= hi <= {_GUIDE_LEN}")
+    if not spec.pam or set(spec.pam.upper()) - set(_IUPAC):
+        problems.append(f"pam contains invalid IUPAC codes: {spec.pam!r}")
+
+    # Applicability checks only make sense once the fields are structurally sane.
+    if problems:
+        return problems
+
+    # --- applicability: is the spec actually usable on this sequence? ---
+    target = _TARGET[spec.edit_type]
+    if target not in guide[w_lo - 1 : w_hi]:
+        problems.append(
+            f"no editable {target} in the guide's edit window (positions {w_lo}-{w_hi})"
+        )
+
+    strand_seq = sequence.upper() if spec.strand == "+" else _revcomp(sequence.upper())
+    if not _guide_occurs_with_pam(strand_seq, guide, spec.pam):
+        problems.append(
+            f"guide + {spec.pam} PAM not found on the {spec.strand} strand "
+            "(spec is not applicable to this sequence)"
+        )
+
+    return problems
