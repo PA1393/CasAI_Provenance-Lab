@@ -9,6 +9,9 @@ class RagSearchRequest(BaseModel):
     query: str
     match_count: int = 3
     match_threshold: float = Field(default=settings.rag_match_threshold, ge=0.0, le=1.0)
+    # Omit to let select_vaults() route the query (demo scope: always "crop").
+    # Pass explicitly to override routing and search specific vault(s).
+    vaults: list[str] | None = None
 
     @field_validator("match_count")
     @classmethod
@@ -25,6 +28,7 @@ class RagChunk(BaseModel):
     source_url: str | None = None
     source_title: str | None = None
     source_type: str | None = None
+    vault: str | None = None
 
 class RagSearchResponse(BaseModel):
     items: list[RagChunk]

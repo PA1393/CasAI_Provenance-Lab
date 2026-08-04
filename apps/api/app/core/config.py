@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # without trimming real matches. A tuned starting point; override with
     # RAG_MATCH_THRESHOLD in .env.
     rag_match_threshold: float = 0.25
+    # Vault(s) queried when a prompt doesn't specify one. Demo scope is crop-only;
+    # override with DEFAULT_VAULT in .env once more vaults exist.
+    default_vault: str = "crop"
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,
