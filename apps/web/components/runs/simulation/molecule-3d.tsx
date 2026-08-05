@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPluginUI } from "molstar/lib/mol-plugin-ui";
+import { renderReact18 } from "molstar/lib/mol-plugin-ui/react18";
+import { DefaultPluginUISpec } from "molstar/lib/mol-plugin-ui/spec";
+import { PluginUIContext } from "molstar/lib/mol-plugin-ui/context";
+import type { StateObjectSelector } from "molstar/lib/mol-state";
+import { Vec3 } from "molstar/lib/mol-math/linear-algebra";
+import { Color } from "molstar/lib/mol-util/color/color";
+import "molstar/build/viewer/molstar.css";
 
-// 3D molecular viewer for the CRISPR edit. Uses 3Dmol.js (loaded from CDN) to
-// render a real Cas9–sgRNA–DNA complex from the PDB. The structure spins
-// continuously and re-styles per simulation phase so the "enzyme" is visibly
-// engaging the DNA as the edit proceeds.
+// 3D molecular viewer for the CRISPR edit. Renders a real Cas9–sgRNA–DNA
+// complex from the PDB via Mol*. The structure spins continuously and
+// re-styles per simulation phase so the "enzyme" is visibly engaging the
+// DNA as the edit proceeds.
 
 type Props = {
   phase: number;
@@ -19,32 +27,83 @@ const CRISPR_STRUCTURES = [
   { id: "6VPC", label: "Base editor · Cas9 nickase (6VPC)" },
 ];
 
-declare global {
-  interface Window {
-    // 3Dmol attaches itself here once the script loads.
-    $3Dmol?: any;
+const NUCLEIC_COLOR = Color.fromHexStyle("#38bdf8");
+const SURFACE_ENGAGE_COLOR = Color.fromHexStyle("#a78bfa");
+const SURFACE_EDIT_COLOR = Color.fromHexStyle("#fb923c");
+const STICK_EDIT_COLOR = Color.fromHexStyle("#fb923c");
+
+interface StructureRefs {
+  structure: StateObjectSelector;
+  protein?: StateObjectSelector;
+  nucleic?: StateObjectSelector;
+  stickRepr?: StateObjectSelector;
+  surfaceRepr?: StateObjectSelector;
+}
+
+// Rebuilds the phase-dependent parts only (nucleic stick color + protein
+// surface). The base cartoon representations are built once per structure
+// load and left alone — matches the original's visual result without
+// tearing down parts of the scene that don't depend on phase.
+async function applyPhaseStyle(plugin: PluginUIContext, refs: StructureRefs, phase: number) {
+  if (refs.surfaceRepr) {
+    plugin.build().delete(refs.surfaceRepr).commit();
+    refs.surfaceRepr = undefined;
+  }
+  if (phase >= 2 && refs.protein) {
+    refs.surfaceRepr = await plugin.builders.structure.representation.addRepresentation(refs.protein, {
+      type: "molecular-surface",
+      typeParams: { alpha: 0.35 },
+      color: "uniform",
+      colorParams: { value: phase >= 3 ? SURFACE_EDIT_COLOR : SURFACE_ENGAGE_COLOR },
+    });
+  }
+
+  if (refs.stickRepr) {
+    plugin.build().delete(refs.stickRepr).commit();
+    refs.stickRepr = undefined;
+  }
+  if (refs.nucleic) {
+    refs.stickRepr = await plugin.builders.structure.representation.addRepresentation(refs.nucleic, {
+      type: "ball-and-stick",
+      typeParams: phase >= 3 ? { sizeFactor: 0.22 } : undefined,
+      color: phase >= 3 ? "uniform" : "element-symbol",
+      colorParams: phase >= 3 ? { value: STICK_EDIT_COLOR } : undefined,
+    });
   }
 }
 
-let scriptPromise: Promise<void> | null = null;
-function load3Dmol(): Promise<void> {
-  if (typeof window === "undefined") return Promise.reject();
-  if (window.$3Dmol) return Promise.resolve();
-  if (scriptPromise) return scriptPromise;
-  scriptPromise = new Promise<void>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://3Dmol.org/build/3Dmol-min.js";
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Failed to load 3Dmol.js"));
-    document.head.appendChild(s);
+async function buildComponents(plugin: PluginUIContext, structure: StateObjectSelector): Promise<StructureRefs> {
+  const refs: StructureRefs = { structure };
+
+  refs.protein = await plugin.builders.structure.tryCreateComponentStatic(structure, "protein", {
+    label: "Protein",
   });
-  return scriptPromise;
+  if (refs.protein) {
+    await plugin.builders.structure.representation.addRepresentation(refs.protein, {
+      type: "cartoon",
+      color: "sequence-id",
+    });
+  }
+
+  refs.nucleic = await plugin.builders.structure.tryCreateComponentStatic(structure, "nucleic", {
+    label: "Nucleic acid",
+  });
+  if (refs.nucleic) {
+    await plugin.builders.structure.representation.addRepresentation(refs.nucleic, {
+      type: "cartoon",
+      color: "uniform",
+      colorParams: { value: NUCLEIC_COLOR },
+    });
+  }
+
+  return refs;
 }
 
 export function Molecule3D({ phase, pdbId }: Props) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const viewerRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const pluginPromiseRef = useRef<Promise<PluginUIContext> | null>(null);
+  const refsRef = useRef<StructureRefs | null>(null);
+  const generationRef = useRef(0);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
@@ -55,92 +114,122 @@ export function Molecule3D({ phase, pdbId }: Props) {
   const [structure, setStructure] = useState(CRISPR_STRUCTURES[0].id);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
-  function applyStyle(viewer: any, ph: number) {
-    const $3Dmol = window.$3Dmol;
-    if (!viewer || !$3Dmol) return;
-    viewer.setStyle({}, {});
-    // Protein (the Cas9 enzyme) as cartoon, spectrum-colored.
-    viewer.setStyle(
-      { resn: ["DA", "DC", "DG", "DT", "A", "C", "G", "U"], invert: true },
-      { cartoon: { color: "spectrum" } },
-    );
-    // Nucleic acids (guide RNA + target DNA) as sticks so they read clearly.
-    viewer.setStyle(
-      { resn: ["DA", "DC", "DG", "DT", "A", "C", "G", "U"] },
-      { stick: { colorscheme: "default", radius: 0.18 }, cartoon: { color: "#38bdf8" } },
-    );
-    // Engaging / editing phases: show the enzyme surface closing in, and
-    // recolor the nucleic acids to signal the base conversion.
-    viewer.removeAllSurfaces();
-    if (ph >= 2) {
-      viewer.addSurface($3Dmol.SurfaceType.VDW, {
-        opacity: 0.35,
-        color: ph >= 3 ? "#fb923c" : "#a78bfa",
-      }, { resn: ["DA", "DC", "DG", "DT", "A", "C", "G", "U"], invert: true });
-    }
-    if (ph >= 3) {
-      viewer.setStyle(
-        { resn: ["DA", "DC", "DG", "DT", "A", "C", "G", "U"] },
-        { stick: { color: "#fb923c", radius: 0.22 } },
-      );
-    }
-    viewer.render();
-  }
-
-  // Build / rebuild the viewer when the chosen structure changes.
+  // Plugin lifecycle: created once per mount, disposed once on unmount.
+  // React StrictMode double-invokes this effect in dev, and the two
+  // invocations can overlap in-flight (createPluginUI is async). Giving
+  // each mount attempt its own child node means two concurrent attempts
+  // target two different DOM nodes, so they can never collide on a single
+  // `createRoot()` call.
   useEffect(() => {
+    const parent = containerRef.current;
+    if (!parent) return;
+
+    const mountNode = document.createElement("div");
+    mountNode.style.position = "absolute";
+    mountNode.style.inset = "0";
+    parent.appendChild(mountNode);
+
     let cancelled = false;
-    setStatus("loading");
+    let pluginInstance: PluginUIContext | null = null;
 
-    load3Dmol()
-      .then(() => {
-        if (cancelled) return;
-        const $3Dmol = window.$3Dmol;
-        const host = hostRef.current;
-        if (!$3Dmol || !host) return;
+    const promise = createPluginUI({
+      target: mountNode,
+      render: renderReact18,
+      spec: DefaultPluginUISpec(),
+    }).then((plugin) => {
+      if (cancelled) {
+        plugin.dispose();
+        throw new Error("Molecule3D unmounted before plugin finished initializing");
+      }
+      pluginInstance = plugin;
+      return plugin;
+    });
 
-        if (!viewerRef.current) {
-          viewerRef.current = $3Dmol.createViewer(host, {
-            backgroundColor: "#0c0f13",
-            antialias: true,
-          });
-        }
-        const viewer = viewerRef.current;
-        viewer.clear();
-
-        $3Dmol.download(
-          `pdb:${structure}`,
-          viewer,
-          { multimodel: false },
-          () => {
-            if (cancelled) return;
-            applyStyle(viewer, phaseRef.current);
-            viewer.zoomTo();
-            viewer.spin("y", 1); // continuous rotation
-            viewer.render();
-            setStatus("ready");
-          },
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setStatus("error");
-      });
+    pluginPromiseRef.current = promise;
 
     return () => {
       cancelled = true;
+      pluginPromiseRef.current = null;
+      refsRef.current = null;
+      mountNode.remove();
+      pluginInstance?.dispose();
+    };
+  }, []);
+
+  // Build / rebuild the scene when the chosen structure changes.
+  useEffect(() => {
+    const generation = ++generationRef.current;
+    let active = true;
+    setStatus("loading");
+
+    (async () => {
+      const promise = pluginPromiseRef.current;
+      if (!promise) return;
+
+      let plugin: PluginUIContext;
+      try {
+        plugin = await promise;
+      } catch {
+        return;
+      }
+      if (!active || generation !== generationRef.current) return;
+
+      try {
+        await plugin.clear();
+        if (!active || generation !== generationRef.current) return;
+
+        const data = await plugin.builders.data.download(
+          { url: `https://files.rcsb.org/download/${structure}.pdb`, isBinary: false },
+          { state: { isGhost: true } },
+        );
+        if (!active || generation !== generationRef.current) return;
+
+        const trajectory = await plugin.builders.structure.parseTrajectory(data, "pdb");
+        if (!active || generation !== generationRef.current) return;
+
+        const model = await plugin.builders.structure.createModel(trajectory);
+        if (!active || generation !== generationRef.current) return;
+
+        const structureObj = await plugin.builders.structure.createStructure(model);
+        if (!active || generation !== generationRef.current) return;
+
+        const refs = await buildComponents(plugin, structureObj);
+        if (!active || generation !== generationRef.current) return;
+        refsRef.current = refs;
+
+        await applyPhaseStyle(plugin, refs, phaseRef.current);
+        if (!active || generation !== generationRef.current) return;
+
+        plugin.managers.camera.reset();
+        plugin.canvas3d?.setProps({
+          trackball: { animate: { name: "spin", params: { speed: 1, axis: Vec3.create(0, 1, 0) } } },
+        });
+
+        setStatus("ready");
+      } catch {
+        if (active && generation === generationRef.current) setStatus("error");
+      }
+    })();
+
+    return () => {
+      active = false;
     };
   }, [structure]);
 
   // Re-style on phase changes (no reload).
   useEffect(() => {
-    if (status === "ready" && viewerRef.current) {
-      applyStyle(viewerRef.current, phase);
-    }
+    if (status !== "ready") return;
+    const plugin = pluginPromiseRef.current;
+    const refs = refsRef.current;
+    if (!plugin || !refs) return;
+    plugin.then((p) => {
+      if (refsRef.current === refs) applyPhaseStyle(p, refs, phase);
+    });
   }, [phase, status]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg">
-      <div ref={hostRef} className="absolute inset-0" style={{ position: "absolute" }} />
+      <div ref={containerRef} className="absolute inset-0" />
 
       <div className="absolute left-3 top-3 z-10">
         <select
@@ -164,7 +253,7 @@ export function Molecule3D({ phase, pdbId }: Props) {
       {status === "error" && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-bg/80 px-6 text-center font-mono text-xs text-accent-red">
           <span>Could not load the 3D structure.</span>
-          <span className="text-muted">Check your internet connection (structures stream from RCSB / 3Dmol.org).</span>
+          <span className="text-muted">Check your internet connection (structures stream from RCSB).</span>
           <button
             onClick={() => setStructure((s) => s)}
             className="mt-1 rounded border border-border px-3 py-1 text-text hover:border-accent"
