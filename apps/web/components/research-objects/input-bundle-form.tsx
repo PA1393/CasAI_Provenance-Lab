@@ -4,6 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createResearchObject } from "@/lib/api/client";
 
+// Mirrors parse_fasta's max_length on the backend, so an oversized file is
+// rejected before the browser reads it into memory.
+const MAX_UPLOAD_BYTES = 10_000_000;
+
+// Only FASTA carries a sequence the base-edit pipeline can parse; the other
+// types are accepted as metadata but contribute no bases.
+const TYPE_BY_EXTENSION: Record<string, string> = {
+  fasta: "fasta",
+  fa: "fasta",
+  fna: "fasta",
+  fastq: "fastq",
+  fq: "fastq",
+  vcf: "vcf",
+};
+
 export function InputBundleForm() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -15,10 +30,40 @@ export function InputBundleForm() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fastaText, setFastaText] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setInputFilename(file.name);
+    setFastaText(null);
+    setError(null);
+    if (!file) return;
+    setInputFilename(file.name);
+
+    // Infer the type from the extension: the select defaults to FASTQ, and
+    // leaving it there on a FASTA upload would silently drop the sequence.
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const detected = TYPE_BY_EXTENSION[extension];
+    const effectiveType = detected ?? inputFileType;
+    if (detected) setInputFileType(detected);
+    if (effectiveType !== "fasta") return;
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `File is ${(file.size / 1_000_000).toFixed(1)} MB — the maximum is ` +
+          `${MAX_UPLOAD_BYTES / 1_000_000} MB.`,
+      );
+      return;
+    }
+
+    setReading(true);
+    try {
+      setFastaText(await file.text());
+    } catch {
+      setError("Could not read the selected file.");
+    } finally {
+      setReading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -39,6 +84,9 @@ export function InputBundleForm() {
         input_file_type: inputFileType,
         pdb_id: pdbId,
         ...(target_region ? { target_region } : {}),
+        // Sending the text is what gives the research object a sequence, and so
+        // what lets a run get past the pipeline's input stage.
+        ...(inputFileType === "fasta" && fastaText ? { fasta_text: fastaText } : {}),
       });
       router.push(`/research-objects/${created.research_object_id}`);
     } catch (err) {
@@ -75,7 +123,20 @@ export function InputBundleForm() {
             className={`${inputBase} file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:bg-border file:text-text file:font-mono file:text-xs file:cursor-pointer hover:file:bg-accent/20`}
           />
           {inputFilename && (
-            <span className="font-mono text-xs text-muted mt-1 block">{inputFilename}</span>
+            <span className="font-mono text-xs text-muted mt-1 block">
+              {inputFilename}
+              {reading && " · reading…"}
+              {!reading && fastaText && (
+                <span className="text-accent">
+                  {` · ${fastaText.length.toLocaleString()} chars — sequence will be parsed`}
+                </span>
+              )}
+              {!reading && !fastaText && inputFileType !== "fasta" && (
+                <span className="text-accent-amber">
+                  {" · no sequence — only FASTA is parsed, so runs will stop at the input stage"}
+                </span>
+              )}
+            </span>
           )}
         </FormLabel>
 
@@ -113,10 +174,10 @@ export function InputBundleForm() {
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || reading}
         className="mt-6 inline-flex font-mono text-xs tracking-[0.2em] uppercase font-semibold px-6 py-3 rounded bg-text text-bg hover:bg-accent transition-colors disabled:opacity-50"
       >
-        {submitting ? "Creating…" : "Create Research Object →"}
+        {submitting ? "Creating…" : reading ? "Reading file…" : "Create Research Object →"}
       </button>
     </form>
   );

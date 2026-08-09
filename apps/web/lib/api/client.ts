@@ -31,6 +31,10 @@ export type ResearchObjectCreate = {
   input_file_type: string;
   pdb_id: string;
   target_region?: number[];
+  // Raw FASTA text. Input-only: the backend parses it and stores the sequence
+  // plus the fields derived from it. Without it the research object has no
+  // sequence and every run against it halts at the input stage.
+  fasta_text?: string;
 };
 
 export type Run = {
