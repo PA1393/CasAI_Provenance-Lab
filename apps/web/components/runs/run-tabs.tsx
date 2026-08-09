@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ProvenanceEvent, Result } from "@/lib/api/client";
 import { RunPipeline } from "@/components/runs/run-pipeline";
 import { RunSimulation } from "@/components/runs/simulation/run-simulation";
+import { extractEditGeometry } from "@/components/runs/simulation/sequence-track";
 import { RagSources } from "@/components/runs/rag-sources";
 
 type RagSource = {
@@ -24,6 +25,7 @@ type Props = {
   pdbId?: string | null;
   guideRna?: string | null;
   editedSequence?: string | null;
+  sequence?: string | null;
 };
 
 type Tab = "simulation" | "provenance" | "results" | "sources";
@@ -43,9 +45,11 @@ export function RunTabs({
   pdbId,
   guideRna,
   editedSequence,
+  sequence,
 }: Props) {
   const [active, setActive] = useState<Tab>("simulation");
   const ragSources = extractRagSources(provenance);
+  const editGeometry = extractEditGeometry(provenance);
 
   return (
     <div>
@@ -71,6 +75,8 @@ export function RunTabs({
             pdbId={pdbId}
             guideRna={guideRna}
             editedSequence={editedSequence}
+            sequence={sequence}
+            geometry={editGeometry}
           />
         )}
         {active === "provenance" && (
