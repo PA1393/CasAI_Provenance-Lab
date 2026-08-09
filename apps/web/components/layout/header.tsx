@@ -1,13 +1,11 @@
 import Link from "next/link";
+import { LogoMark } from "@/components/ui/logo-mark";
 
 export function Header() {
   return (
     <nav className="flex items-center justify-between px-8 py-5 border-b border-border/50">
-      <Link href="/" className="flex items-center gap-3 group">
-        <div className="relative w-5 h-5">
-          <div className="absolute inset-0 rounded-full border border-accent" />
-          <div className="absolute inset-[5px] rounded-full bg-accent" />
-        </div>
+      <Link href="/" className="flex items-center gap-2.5 group">
+        <LogoMark className="h-6 w-6 shrink-0 transition-transform duration-300 ease-apple group-hover:scale-110" />
         <span className="font-mono text-sm tracking-[0.3em] text-text font-semibold group-hover:text-accent transition-colors">
           CASAI
         </span>
