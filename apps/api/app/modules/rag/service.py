@@ -23,14 +23,31 @@ def embed_query(text: str) -> list[float] | None:
         return None
 
 
+def select_vaults(query: str) -> list[str]:
+    """
+    Decide which vault(s) a prompt should be searched against.
+
+    Demo scope: only the "crop" vault is populated, so this always returns the
+    configured default — no LLM call, since choosing among one option isn't a
+    decision. The signature takes the query so a real router (LLM classifier
+    over available vaults) can replace this body later without touching any
+    caller.
+    """
+    return [settings.default_vault]
+
+
 def search_vault(
     query: str,
     match_count: int = 3,
     match_threshold: float = settings.rag_match_threshold,
+    vaults: list[str] | None = None,
 ) -> list[dict]:
     embedding = embed_query(query)
     if embedding is None:
         return []
+
+    if vaults is None:
+        vaults = select_vaults(query)
 
     supabase = get_supabase()
     try:
@@ -40,6 +57,7 @@ def search_vault(
                 "query_embedding": embedding,
                 "match_threshold": match_threshold,
                 "match_count": match_count,
+                "vault_filter": vaults,
             },
         ).execute()
         return response.data or []
@@ -109,12 +127,14 @@ def answer_query(
     query: str,
     match_count: int = 3,
     match_threshold: float = settings.rag_match_threshold,
+    vaults: list[str] | None = None,
 ) -> dict:
     """Retrieve context then generate a grounded answer. Returns answer + sources."""
     chunks = search_vault(
         query=query,
         match_count=match_count,
         match_threshold=match_threshold,
+        vaults=vaults,
     )
     answer = generate_answer(query, chunks)
     return {"answer": answer, "sources": chunks}

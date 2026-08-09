@@ -18,6 +18,7 @@ def rag_search(body: RagSearchRequest) -> RagSearchResponse:
         query=body.query,
         match_count=body.match_count,
         match_threshold=body.match_threshold,
+        vaults=body.vaults,
     )
     return RagSearchResponse(items=[RagChunk(**c) for c in chunks])
 
@@ -28,6 +29,7 @@ def rag_ask(body: RagAskRequest) -> RagAskResponse:
         query=body.query,
         match_count=body.match_count,
         match_threshold=body.match_threshold,
+        vaults=body.vaults,
     )
     return RagAskResponse(
         answer=result["answer"],
