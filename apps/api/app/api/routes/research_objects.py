@@ -25,7 +25,11 @@ def get_research_objects() -> ResearchObjectsResponse:
 
 @router.post("/research-objects", response_model=ResearchObject, status_code=201)
 def post_research_object(body: ResearchObjectCreate) -> ResearchObject:
-    created = create_research_object(body.model_dump(exclude_none=True))
+    try:
+        created = create_research_object(body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        # A malformed FASTA is bad input from the caller, not a server fault.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ResearchObject(**created)
 
 
@@ -40,4 +44,3 @@ def get_research_object_by_id(research_object_id: str) -> ResearchObject:
 def get_runs_by_research_object_id(research_object_id: str) -> RunsResponse:
     items = list_runs_by_research_object(research_object_id)
     return RunsResponse(items=[Run(**item) for item in items])
-

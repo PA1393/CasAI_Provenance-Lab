@@ -7,6 +7,10 @@ class ResearchObjectCreate(BaseModel):
     input_file_type: str
     pdb_id: str
     target_region: list[int] | None = None
+    # Raw FASTA upload text. Input-only — the service consumes it and stores the
+    # sequence and the fields derived from it. Omit it and the research object is
+    # created without a sequence, which the pipeline reports as an input failure.
+    fasta_text: str | None = None
 
 
 class ResearchObject(BaseModel):
@@ -27,6 +31,9 @@ class ResearchObject(BaseModel):
     status: str
     fasta_preview: str | None = None
     target_region: list[int] | None = None
+    # Full parsed sequence the base-edit pipeline runs against. Null for research
+    # objects created without a FASTA upload.
+    sequence: str | None = None
 
 
 class ResearchObjectsResponse(BaseModel):
