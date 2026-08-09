@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Molecule2D } from "@/components/runs/simulation/molecule-2d";
-import { Molecule3D } from "@/components/runs/simulation/molecule-3d";
+
+// Mol* is large; keep it out of the first-paint bundle.
+const Molecule3D = dynamic(
+  () => import("@/components/runs/simulation/molecule-3d").then((m) => m.Molecule3D),
+  { ssr: false },
+);
 
 type Props = {
   pdbId?: string | null;
