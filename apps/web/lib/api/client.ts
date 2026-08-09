@@ -20,6 +20,9 @@ export type ResearchObject = {
   status: string;
   fasta_preview: string | null;
   target_region: number[] | null;
+  // Full parsed sequence the pipeline runs against. Null when the research
+  // object was created without a FASTA upload.
+  sequence: string | null;
 };
 
 export type ResearchObjectCreate = {
@@ -28,6 +31,10 @@ export type ResearchObjectCreate = {
   input_file_type: string;
   pdb_id: string;
   target_region?: number[];
+  // Raw FASTA text. Input-only: the backend parses it and stores the sequence
+  // plus the fields derived from it. Without it the research object has no
+  // sequence and every run against it halts at the input stage.
+  fasta_text?: string;
 };
 
 export type Run = {
