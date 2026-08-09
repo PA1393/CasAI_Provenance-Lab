@@ -153,7 +153,7 @@ export function RunSimulation({
           <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
             Resulting edited sequence
           </p>
-          <p className="mt-2 font-mono text-xs text-[#fb923c] break-all">{editedSequence}</p>
+          <p className="mt-2 font-mono text-xs text-accent-amber break-all">{editedSequence}</p>
         </div>
       )}
     </div>

@@ -18,14 +18,16 @@ const VIEW_BASES = 64;
 const EDIT_PHASE = 3;
 
 // Hex literals rather than Tailwind classes because SVG fill/stroke need them.
-// Values track the theme tokens in tailwind.config.ts; "edited" is the orange
-// already used for edited output in run-simulation.tsx and molecule-3d.tsx.
+// Values track the theme tokens in tailwind.config.ts. Four tiers, deliberately
+// ordered by how much attention each deserves: context recedes to grey, the
+// protospacer is the green accent, the PAM is a bright neutral landmark, and
+// the converted base is the only warm colour on the track.
 const COLORS = {
-  context: "#8a8a95", // muted — bases outside the guide
-  guide: "#7dd3d8", // accent — protospacer
-  pam: "#f5b942", // accent-amber
-  edited: "#fb923c",
-  border: "#1f1f28",
+  context: "#6e6e73", // muted — bases outside the guide
+  guide: "#30d158", // accent — protospacer
+  pam: "#f5f5f7", // text — PAM as a bright landmark
+  edited: "#ff9f0a", // accent-amber — the converted base
+  border: "#1e1e1e",
 };
 
 const CHAR_W = 13;

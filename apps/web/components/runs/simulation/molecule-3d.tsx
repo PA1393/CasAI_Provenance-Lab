@@ -27,10 +27,13 @@ const CRISPR_STRUCTURES = [
   { id: "6VPC", label: "Base editor · Cas9 nickase (6VPC)" },
 ];
 
-const NUCLEIC_COLOR = Color.fromHexStyle("#38bdf8");
-const SURFACE_ENGAGE_COLOR = Color.fromHexStyle("#a78bfa");
-const SURFACE_EDIT_COLOR = Color.fromHexStyle("#fb923c");
-const STICK_EDIT_COLOR = Color.fromHexStyle("#fb923c");
+// Mirrors the theme tokens in tailwind.config.ts — Mol* needs literals. Nucleic
+// acid and the engaged protein stay in the monochrome/green range; the warm
+// tone is reserved for the post-edit state so it reads as the one change.
+const NUCLEIC_COLOR = Color.fromHexStyle("#30d158");
+const SURFACE_ENGAGE_COLOR = Color.fromHexStyle("#3a3a3c");
+const SURFACE_EDIT_COLOR = Color.fromHexStyle("#ff9f0a");
+const STICK_EDIT_COLOR = Color.fromHexStyle("#ff9f0a");
 
 interface StructureRefs {
   structure: StateObjectSelector;
