@@ -9,33 +9,11 @@
 
 from __future__ import annotations
 
+from app.modules.simulation.nucleotides import pam_matches, revcomp
+
 _GUIDE_LEN = 20
 
-# Full IUPAC complement so reverse-strand handling works even with ambiguity/N bases.
-_COMPLEMENT = str.maketrans(
-    "ACGTUNRYSWKMBDHV",
-    "TGCAANYRSWMKVHDB",
-)
-
-# IUPAC code -> the set of concrete bases it matches (used for PAM matching, e.g. N=any).
-_IUPAC = {
-    "A": "A", "C": "C", "G": "G", "T": "T",
-    "N": "ACGT", "R": "AG", "Y": "CT", "S": "GC", "W": "AT",
-    "K": "GT", "M": "AC", "B": "CGT", "D": "AGT", "H": "ACT", "V": "ACG",
-}
-
 _EDITS = {"CBE": ("C", "T"), "ABE": ("A", "G")}
-
-
-def _revcomp(seq: str) -> str:
-    return seq.translate(_COMPLEMENT)[::-1]
-
-
-def _pam_matches(segment: str, pam: str) -> bool:
-    if len(segment) != len(pam):
-        return False
-    # Each PAM code (e.g. N) expands to the bases it allows; the actual base must be one.
-    return all(base in _IUPAC.get(code, code) for code, base in zip(pam, segment))
 
 
 def _locate(seq: str, guide: str, pam: str) -> tuple[int | None, str | None, bool]:
@@ -53,7 +31,7 @@ def _locate(seq: str, guide: str, pam: str) -> tuple[int | None, str | None, boo
             return None, None, guide_found
         guide_found = True
         segment = seq[i + _GUIDE_LEN : i + _GUIDE_LEN + len(pam)]
-        if _pam_matches(segment, pam):
+        if pam_matches(segment, pam):
             return i, segment, True
         start = i + 1
 
@@ -129,7 +107,7 @@ def apply_base_edit(
     else:
         # Antisense: reuse the exact forward logic on the reverse complement,
         # then map the result back to sense orientation.
-        rc = _revcomp(seq)
+        rc = revcomp(seq)
         j, pam_seg, guide_found_rev = _locate(rc, guide, pam)
         if j is None:
             found = guide_found_fwd or guide_found_rev
@@ -138,7 +116,7 @@ def apply_base_edit(
             )
         edited_rc, positions_rc = _apply_window(rc, j, w0, w1, target, repl)
         n = len(seq)
-        edited = _revcomp(edited_rc)
+        edited = revcomp(edited_rc)
         positions0 = [n - 1 - p for p in positions_rc]
         proto_start = n - (j + _GUIDE_LEN)
         strand = "-"

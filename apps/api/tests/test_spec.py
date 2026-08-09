@@ -31,7 +31,8 @@ def test_design_guide_finds_reverse_strand_site() -> None:
     # put a clean CBE site on a sequence, then reverse-complement the whole thing so
     # the only compatible site lives on the antisense strand
     forward = "AAAA" + GUIDE_C + "AGG" + "AAAA"
-    seq = spec._revcomp(forward)
+    from app.modules.simulation.nucleotides import revcomp
+    seq = revcomp(forward)
     d = spec.design_guide(seq, "CBE")
     assert d is not None
     assert d["strand"] == "-"

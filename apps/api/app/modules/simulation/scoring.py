@@ -6,16 +6,10 @@ from __future__ import annotations
 
 from itertools import groupby
 
+from app.modules.simulation.nucleotides import revcomp
+
 _GUIDE_LEN = 20
 _ACGT = set("ACGT")
-
-# Local reverse-complement. Mirrors simulation.engine._revcomp; kept here so scoring
-# stays self-contained (can consolidate into a shared nucleotides module once both land).
-_COMPLEMENT = str.maketrans("ACGTUNRYSWKMBDHV", "TGCAANYRSWMKVHDB")
-
-
-def _revcomp(seq: str) -> str:
-    return seq.translate(_COMPLEMENT)[::-1]
 
 
 def _clean_guide(guide_rna: str) -> str:
@@ -76,7 +70,7 @@ def off_target_score(sequence: str, guide_rna: str, max_mismatches: int = 3) -> 
 
     seq = sequence.upper()
     weight_total = 0.0
-    for strand in (seq, _revcomp(seq)):
+    for strand in (seq, revcomp(seq)):
         for i in range(len(strand) - _GUIDE_LEN + 1):
             dist = _hamming(strand[i : i + _GUIDE_LEN], guide)
             if 1 <= dist <= max_mismatches:
