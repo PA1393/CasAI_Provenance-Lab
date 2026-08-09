@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Molecule2D } from "@/components/runs/simulation/molecule-2d";
+import {
+  SequenceTrack,
+  type EditGeometry,
+} from "@/components/runs/simulation/sequence-track";
 
 // Mol* is large; keep it out of the first-paint bundle.
 const Molecule3D = dynamic(
@@ -14,6 +18,8 @@ type Props = {
   pdbId?: string | null;
   guideRna?: string | null;
   editedSequence?: string | null;
+  sequence?: string | null;
+  geometry?: EditGeometry | null;
 };
 
 const PHASES = [
@@ -41,7 +47,13 @@ const PHASES = [
 
 const STEP_MS = 2800;
 
-export function RunSimulation({ pdbId, guideRna, editedSequence }: Props) {
+export function RunSimulation({
+  pdbId,
+  guideRna,
+  editedSequence,
+  sequence,
+  geometry,
+}: Props) {
   const [phase, setPhase] = useState(0);
   const [playing, setPlaying] = useState(true);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -95,11 +107,30 @@ export function RunSimulation({ pdbId, guideRna, editedSequence }: Props) {
         <span className="text-accent">{current.label}</span> — {current.desc}
       </p>
 
+      {/* The real bases, annotated at their real coordinates — the mechanism
+          panels below are schematic, this one is the run's actual output. */}
+      <figure className="flex flex-col rounded-lg border border-border bg-bg-card">
+        <figcaption className="flex items-center justify-between border-b border-border px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase text-muted">
+          <span>Sequence · Edit site</span>
+          <span className="text-accent">
+            {geometry?.strand ? `${geometry.strand} strand` : "no edit geometry"}
+          </span>
+        </figcaption>
+        <div className="p-4">
+          <SequenceTrack
+            sequence={sequence}
+            editedSequence={editedSequence}
+            geometry={geometry}
+            phase={phase}
+          />
+        </div>
+      </figure>
+
       <div className="grid gap-5 lg:grid-cols-2">
         <figure className="flex flex-col rounded-lg border border-border bg-bg-card">
           <figcaption className="flex items-center justify-between border-b border-border px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase text-muted">
             <span>2D · Edit mechanism</span>
-            <span className="text-accent">live</span>
+            <span className="text-accent">schematic</span>
           </figcaption>
           <div className="h-[300px] p-2">
             <Molecule2D phase={phase} guideRna={guideRna} />

@@ -20,6 +20,9 @@ export type ResearchObject = {
   status: string;
   fasta_preview: string | null;
   target_region: number[] | null;
+  // Full parsed sequence the pipeline runs against. Null when the research
+  // object was created without a FASTA upload.
+  sequence: string | null;
 };
 
 export type ResearchObjectCreate = {

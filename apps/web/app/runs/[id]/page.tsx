@@ -114,6 +114,7 @@ export default async function RunPage({ params }: Props) {
           pdbId={researchObject?.pdb_id}
           guideRna={run.guide_rna}
           editedSequence={editedSequence}
+          sequence={researchObject?.sequence}
         />
       </div>
     </section>
