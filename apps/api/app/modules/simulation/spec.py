@@ -12,10 +12,6 @@
 #   _extract_intent()    — LLM intent extraction, grounded in retrieved chunks.
 #   resolve_edit_spec()  — orchestrates retrieve -> intent -> guide -> EditSpec.
 #
-# NOTE: _revcomp / _pam_matches / _GUIDE_LEN are inlined here so this module is
-# self-contained. They mirror simulation.engine; consolidate into a shared
-# nucleotides module once the engine lands on main.
-
 from __future__ import annotations
 
 import json
@@ -25,17 +21,11 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.modules.rag.service import _format_context, search_vault
+from app.modules.simulation.nucleotides import IUPAC, pam_matches, revcomp
 
 _GUIDE_LEN = 20
 _ACGT = set("ACGT")
 _TARGET = {"CBE": "C", "ABE": "A"}  # base each editor converts within the window
-
-_COMPLEMENT = str.maketrans("ACGTUNRYSWKMBDHV", "TGCAANYRSWMKVHDB")
-_IUPAC = {
-    "A": "A", "C": "C", "G": "G", "T": "T",
-    "N": "ACGT", "R": "AG", "Y": "CT", "S": "GC", "W": "AT",
-    "K": "GT", "M": "AC", "B": "CGT", "D": "AGT", "H": "ACT", "V": "ACG",
-}
 
 _INTENT_SYSTEM = (
     "You are a CRISPR base-editing analysis agent for a crop gene-editing lab. "
@@ -64,16 +54,6 @@ class EditSpec(BaseModel):
     rationale: str | None = None  # the LLM's grounded, cited explanation
 
 
-def _revcomp(seq: str) -> str:
-    return seq.translate(_COMPLEMENT)[::-1]
-
-
-def _pam_matches(segment: str, pam: str) -> bool:
-    if len(segment) != len(pam):
-        return False
-    return all(base in _IUPAC.get(code, code) for code, base in zip(pam, segment))
-
-
 def design_guide(
     sequence: str,
     edit_type: str,
@@ -98,12 +78,12 @@ def design_guide(
     w0, w1 = window[0] - 1, window[1] - 1
     seq = sequence.upper()
 
-    for strand, strand_seq in (("+", seq), ("-", _revcomp(seq))):
+    for strand, strand_seq in (("+", seq), ("-", revcomp(seq))):
         for i in range(len(strand_seq) - _GUIDE_LEN + 1):
             proto = strand_seq[i : i + _GUIDE_LEN]
             if set(proto) - _ACGT:
                 continue
-            if not _pam_matches(strand_seq[i + _GUIDE_LEN : i + _GUIDE_LEN + len(pam)], pam):
+            if not pam_matches(strand_seq[i + _GUIDE_LEN : i + _GUIDE_LEN + len(pam)], pam):
                 continue
             if target in proto[w0 : w1 + 1]:
                 return {"guide_rna": proto, "strand": strand}
@@ -182,7 +162,7 @@ def _guide_occurs_with_pam(strand_seq: str, guide: str, pam: str) -> bool:
         if i == -1:
             return False
         segment = strand_seq[i + _GUIDE_LEN : i + _GUIDE_LEN + len(pam)]
-        if _pam_matches(segment, pam):
+        if pam_matches(segment, pam):
             return True
         start = i + 1
 
@@ -212,7 +192,7 @@ def validate_edit_spec(spec: EditSpec, sequence: str) -> list[str]:
         w_lo, w_hi = spec.window
         if not (1 <= w_lo <= w_hi <= _GUIDE_LEN):
             problems.append(f"window {spec.window} must satisfy 1 <= lo <= hi <= {_GUIDE_LEN}")
-    if not spec.pam or set(spec.pam.upper()) - set(_IUPAC):
+    if not spec.pam or set(spec.pam.upper()) - set(IUPAC):
         problems.append(f"pam contains invalid IUPAC codes: {spec.pam!r}")
 
     # Applicability checks only make sense once the fields are structurally sane.
@@ -226,7 +206,7 @@ def validate_edit_spec(spec: EditSpec, sequence: str) -> list[str]:
             f"no editable {target} in the guide's edit window (positions {w_lo}-{w_hi})"
         )
 
-    strand_seq = sequence.upper() if spec.strand == "+" else _revcomp(sequence.upper())
+    strand_seq = sequence.upper() if spec.strand == "+" else revcomp(sequence.upper())
     if not _guide_occurs_with_pam(strand_seq, guide, spec.pam):
         problems.append(
             f"guide + {spec.pam} PAM not found on the {spec.strand} strand "

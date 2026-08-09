@@ -1,6 +1,7 @@
 import pytest
 
-from app.modules.simulation.engine import _revcomp, apply_base_edit
+from app.modules.simulation.engine import apply_base_edit
+from app.modules.simulation.nucleotides import revcomp as _revcomp
 
 # 20-nt guides with a single target base inside the editing window (positions 4-8).
 GUIDE_C = "AAACAAAAAAAAAAAAAAAA"  # one C at protospacer position 4
