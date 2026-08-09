@@ -110,6 +110,7 @@ def test_happy_path_runs_real_chain_and_completes(monkeypatch) -> None:
         ("extract", "schema_validated"),
         ("simulate", "simulation_executed"),
         ("score", "edit_scored"),
+        ("results", "results_validated"),
         ("results", "results_packaged"),
     ]
     # Real result persisted with real (not hardcoded) scores.
@@ -117,8 +118,35 @@ def test_happy_path_runs_real_chain_and_completes(monkeypatch) -> None:
     assert 0.0 <= result["on_target_score"] <= 1.0
     assert 0.0 <= result["off_target_score"] <= 1.0
     assert result["edited_sequence"]  # non-empty, NOT NULL
+    assert result["reproducible"] is True  # earned by passing the gate, not hardcoded
+    # edited_positions is engine output checked by the gate, not a results column.
+    assert "edited_positions" not in result
     assert run["status"] == "completed"
     assert run["current_stage"] == "summary"
+
+
+def test_failed_validation_flags_result_unreproducible_without_killing_the_run(
+    monkeypatch,
+) -> None:
+    # The gate is advisory, not fatal: validate_results demands ACGT-only output
+    # while parse_fasta accepts IUPAC codes, so a legitimate sequence can trip it.
+    # The run must still complete with a persisted result — flagged, not discarded.
+    spec = EditSpec(edit_type="CBE", guide_rna=_GUIDE, strand="+")
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE},
+               spec=spec, problems=[])
+    problem = "edited_positions entry 99 out of range"
+    monkeypatch.setattr(service, "validate_results", lambda result, length: [problem])
+
+    run = service.create_run("ro-1", "prompt")
+
+    assert ("results", "results_invalid") in _stages(sb)
+    assert ("results", "results_validated") not in _stages(sb)
+    # The problems reach the audit trail rather than being swallowed.
+    invalid = next(e for e in sb.events if e["event_type"] == "results_invalid")
+    assert invalid["payload"]["problems"] == [problem]
+    # Result is still written, but honestly marked.
+    assert sb.inserts["results"][0]["reproducible"] is False
+    assert run["status"] == "completed"
 
 
 def test_schema_invalid_halts_and_marks_failed(monkeypatch) -> None:

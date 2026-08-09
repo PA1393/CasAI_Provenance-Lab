@@ -9,6 +9,7 @@ from app.modules.provenance.service import emit
 from app.modules.simulation.engine import apply_base_edit
 from app.modules.simulation.scoring import off_target_score, on_target_score
 from app.modules.simulation.spec import EditSpec, resolve_edit_spec, validate_edit_spec
+from app.modules.simulation.validate import validate_results
 
 logger = logging.getLogger(__name__)
 
@@ -238,20 +239,47 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
         duration_ms=_ms(started),
     )
 
-    # ── results: persist the real outcome ──────────────────────────────────
+    # ── results: validate, then persist the real outcome ───────────────────
     _advance(client, run_id, "results")
-    client.table("results").insert(
-        {
-            "run_id": run_id,
-            "research_object_id": ro.get("research_object_id"),
-            "edited_sequence": edit["edited_sequence"],
-            "edit_summary": _summarize(spec, edit),
-            "on_target_score": on_t,
-            "off_target_score": off_t,
-            "reproducible": True,
-            "notes": spec.rationale,
-        }
-    ).execute()
+    result = {
+        "run_id": run_id,
+        "research_object_id": ro.get("research_object_id"),
+        "edited_sequence": edit["edited_sequence"],
+        "edit_summary": _summarize(spec, edit),
+        "on_target_score": on_t,
+        "off_target_score": off_t,
+        "notes": spec.rationale,
+    }
+    # Validate the full picture, including the positions the engine reported —
+    # `edited_positions` is engine output rather than a results column, so it is
+    # checked here but not persisted.
+    problems = validate_results(
+        {**result, "edited_positions": edit["edited_positions"]}, len(sequence)
+    )
+    # Deliberately not a halt. validate_results requires an ACGT-only edited
+    # sequence, but parse_fasta accepts IUPAC ambiguity codes (N, R, Y, ...), so
+    # a legitimate crop sequence carrying a single N would fail this gate. Rather
+    # than kill a real run, record the problems in the audit trail and mark the
+    # result unreproducible — an honest result the UI can flag, not a silent pass.
+    result["reproducible"] = not problems
+    if problems:
+        emit(
+            run_id,
+            "results",
+            "results_invalid",
+            "Result failed the validation gate — flagged as not reproducible",
+            payload={"problems": problems},
+        )
+    else:
+        emit(
+            run_id,
+            "results",
+            "results_validated",
+            "Result passed the validation gate",
+            payload={"problems": []},
+        )
+
+    client.table("results").insert(result).execute()
     emit(
         run_id,
         "results",
