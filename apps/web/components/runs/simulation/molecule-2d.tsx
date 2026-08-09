@@ -14,17 +14,21 @@ type Props = {
   guideRna?: string | null;
 };
 
+// Monochrome + a single green, matching the theme tokens in tailwind.config.ts.
+// Canvas needs literals, so these mirror the tokens rather than reading them.
+// The one warm colour is reserved for the converted base, so the edit is the
+// only thing on the canvas that isn't black, white, grey or green.
 const COLORS = {
-  bg: "#0c0f13",
-  strandA: "#5eead4",
-  strandB: "#38bdf8",
-  rung: "#1f2a33",
-  cas9: "#a78bfa",
-  cas9Core: "#7c3aed",
-  guide: "#fbbf24",
-  editFrom: "#38bdf8",
-  editTo: "#fb923c",
-  text: "#7a8794",
+  bg: "#000000",
+  strandA: "#30d158", // accent — sense strand
+  strandB: "#6e6e73", // muted — antisense strand
+  rung: "#242424",
+  cas9: "#2c2c2c", // enzyme body, neutral so it never competes with the edit
+  cas9Core: "#30d158",
+  guide: "#f5f5f7", // guide RNA reads as a bright landmark
+  editFrom: "#a1a1a6",
+  editTo: "#ff9f0a",
+  text: "#6e6e73",
 };
 
 export function Molecule2D({ phase, guideRna }: Props) {
@@ -147,7 +151,7 @@ export function Molecule2D({ phase, guideRna }: Props) {
         ctx.beginPath();
         ctx.arc(targetX, y, 8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "#06080a";
+        ctx.fillStyle = COLORS.bg;
         ctx.font = "bold 10px monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -182,7 +186,7 @@ export function Molecule2D({ phase, guideRna }: Props) {
       ctx.ellipse(scanX + 16, midY + 6, 18, 16, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = "#ede9fe";
+      ctx.fillStyle = "#f5f5f7";
       ctx.font = "bold 9px monospace";
       ctx.fillText("Cas9", scanX, midY);
 
@@ -201,7 +205,7 @@ export function Molecule2D({ phase, guideRna }: Props) {
       <canvas ref={canvasRef} className="h-full w-full rounded-lg" />
       {guideRna && (
         <div className="pointer-events-none absolute bottom-2 left-3 font-mono text-[10px] text-muted">
-          guide: <span className="text-[#fbbf24]">{guideRna}</span>
+          guide: <span className="text-text">{guideRna}</span>
         </div>
       )}
     </div>
