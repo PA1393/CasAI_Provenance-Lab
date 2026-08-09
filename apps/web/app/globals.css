@@ -4,82 +4,178 @@
 
 :root {
   color-scheme: dark;
-  --bg: #0a0a0f;
-  --bg-card: #13131c;
-  --border: #1f1f28;
-  --text: #e8e8ed;
-  --muted: #8a8a95;
-  --accent: #7dd3d8;
-  --accent-red: #e85d4d;
-  --accent-amber: #f5b942;
-  --accent-green: #9dd89d;
+  --bg: #000000;
+  --bg-card: #0c0c0c;
+  --bg-elevated: #151515;
+  --border: #1e1e1e;
+  --border-strong: #2c2c2c;
+  --text: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --muted: #6e6e73;
+  --accent: #30d158;
+  --accent-dim: #248a3d;
+  --accent-red: #ff453a;
+  --accent-amber: #ff9f0a;
+  --accent-green: #30d158;
+
+  /* --font-display and --font-mono are injected by next/font in layout.tsx.
+     Only the fallbacks live here, so the two never fight over the same name. */
+  --font-fallback: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  --font-mono-fallback: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-* { box-sizing: border-box; border-color: var(--border); }
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
 
-html, body {
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
   margin: 0;
   min-height: 100vh;
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-display), var(--font-fallback);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Cosmic starfield background */
+/* Two very low-opacity washes instead of a patterned background: enough to
+   keep a pure-black page from looking flat, not enough to read as decoration. */
 body {
   background-image:
-    radial-gradient(circle 1px at 10% 20%, rgba(255,255,255,0.15), transparent),
-    radial-gradient(circle 1px at 30% 70%, rgba(255,255,255,0.10), transparent),
-    radial-gradient(circle 1px at 50% 30%, rgba(255,255,255,0.20), transparent),
-    radial-gradient(circle 1px at 70% 80%, rgba(255,255,255,0.10), transparent),
-    radial-gradient(circle 1px at 90% 40%, rgba(255,255,255,0.15), transparent),
-    radial-gradient(circle 1px at 15% 85%, rgba(125,211,216,0.20), transparent),
-    radial-gradient(circle 1px at 85% 15%, rgba(125,211,216,0.15), transparent),
-    radial-gradient(circle 1px at 60% 60%, rgba(255,255,255,0.10), transparent),
-    radial-gradient(circle 1px at 25% 45%, rgba(255,255,255,0.15), transparent),
-    radial-gradient(circle 1px at 75% 25%, rgba(255,255,255,0.12), transparent);
-  background-size:
-    600px 600px, 800px 800px, 700px 700px, 900px 900px, 750px 750px,
-    850px 850px, 650px 650px, 950px 950px, 720px 720px, 880px 880px;
+    radial-gradient(
+      1100px 600px at 50% -15%,
+      rgba(48, 209, 88, 0.07),
+      transparent 70%
+    ),
+    radial-gradient(
+      800px 500px at 100% 0%,
+      rgba(255, 255, 255, 0.022),
+      transparent 60%
+    );
   background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
-a { color: inherit; text-decoration: none; }
+a {
+  color: inherit;
+  text-decoration: none;
+}
 
+/* Kept under the original class name so every existing heading picks up the
+   new treatment without a component edit. The look is now tightly tracked
+   Space Grotesk rather than a serif. */
 .font-serif-display {
-  font-family: 'Georgia', 'Cambria', serif;
-  font-weight: 400;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display), var(--font-fallback);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+/* Headings used to be a serif, where the italic accent fragments read as
+   editorial. Space Grotesk ships no italic cut, so the browser synthesises an
+   oblique that looks like a slanted mistake at display sizes. Emphasis in
+   headings is carried by the green accent instead. Body copy is untouched. */
+.font-serif-display .italic,
+.font-serif-display.italic {
+  font-style: normal;
 }
 
 .font-mono-label {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-family: var(--font-mono), var(--font-mono-fallback);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-size: 0.75rem;
 }
 
-::selection { background: var(--accent); color: var(--bg); }
+/* Lining, fixed-width figures so scores and coordinates don't jitter as they
+   change — matters on the sequence ruler and the run timings. */
+.font-mono,
+code,
+pre {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::selection {
+  background: rgba(48, 209, 88, 0.28);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3d3d3d;
+}
+
+/* Translucent surface for anything that should float over content. */
+.glass {
+  background: rgba(12, 12, 12, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
-.animate-pulse-soft { animation: pulse-soft 1.5s ease-in-out infinite; }
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+}
 
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
 }
 .shimmer {
-  background: linear-gradient(90deg, transparent, rgba(125,211,216,0.08), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(48, 209, 88, 0.07),
+    transparent
+  );
   background-size: 1000px 100%;
   animation: shimmer 2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-pulse-soft,
+  .shimmer {
+    animation: none;
+  }
 }
