@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteShell } from "@/components/layout/site-shell";
 
-// next/font self-hosts the files and emits the CSS variables the theme reads,
-// so there is no request to a font CDN and no swap flash on first paint.
-const display = Space_Grotesk({
+// Fraunces for display: a warm serif with real italics, which is what stops the
+// headings reading like every other dark-mode developer tool. Inter carries the
+// interface copy, JetBrains Mono the sequence data and labels. All self-hosted
+// by next/font, so no font-CDN request and no swap flash.
+const display = Fraunces({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-display",
+  display: "swap",
+});
+
+const sans = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
   display: "swap",
 });
 
@@ -31,7 +38,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+    >
       <body>
         <SiteShell>{children}</SiteShell>
       </body>

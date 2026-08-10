@@ -1,8 +1,14 @@
 import type { Config } from "tailwindcss";
 
-// Palette: true-neutral blacks (no colour cast in the greys) with a single
-// green accent. Greys and greens are Apple's dark-mode system values, which is
-// what makes the whole thing read as native on macOS rather than as a theme.
+// Every colour resolves through a CSS variable rather than a literal. That is
+// what lets `.instrument` (see globals.css) redefine the palette for a subtree:
+// the simulation console flips to dark instrument colours without a single
+// component changing the classes it renders.
+//
+// Values are space-separated RGB triplets so Tailwind's `/40` alpha modifiers
+// still work — `bg-bg-card/40` and `border-accent/60` are both used in the app.
+const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -13,59 +19,58 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          DEFAULT: "#000000",
-          card: "#0c0c0c",
-          elevated: "#151515",
+          DEFAULT: token("bg"),
+          card: token("bg-card"),
+          sunken: token("bg-sunken"),
+          elevated: token("bg-card"),
         },
         border: {
-          DEFAULT: "#1e1e1e",
-          strong: "#2c2c2c",
+          DEFAULT: token("border"),
+          strong: token("border-strong"),
         },
         text: {
-          DEFAULT: "#f5f5f7",
-          secondary: "#a1a1a6",
+          DEFAULT: token("text"),
+          secondary: token("text-secondary"),
         },
-        muted: "#6e6e73",
+        muted: token("muted"),
         accent: {
-          DEFAULT: "#30d158",
-          dim: "#248a3d",
-          bright: "#5ee77f",
-          red: "#ff453a",
-          amber: "#ff9f0a",
-          green: "#30d158",
+          DEFAULT: token("accent"),
+          bright: token("accent-bright"),
+          soft: token("accent-soft"),
+          dim: token("accent-bright"),
+          amber: token("accent-amber"),
+          red: token("accent-red"),
+          green: token("accent"),
         },
-        // Legacy aliases for any leftover references
-        ink: "#f5f5f7",
-        mist: "#0c0c0c",
-        accentSoft: "#0f2417",
+        ink: token("text"),
+        mist: token("bg-card"),
+        accentSoft: token("accent-soft"),
       },
       fontFamily: {
-        // Space Grotesk everywhere but code. Its narrow apertures and cut
-        // terminals give the product a recognisable voice that a system sans
-        // can't, while staying a workhorse at body sizes. The variables are
-        // defined by next/font in layout.tsx, so the files are self-hosted and
-        // there is no render-blocking request to a font CDN.
-        sans: ["var(--font-display)", "-apple-system", "system-ui", "sans-serif"],
-        display: ["var(--font-display)", "-apple-system", "system-ui", "sans-serif"],
-        serif: ["var(--font-display)", "-apple-system", "system-ui", "sans-serif"],
+        // A warm serif for display and a neutral sans for interface copy — the
+        // pairing reads as clinical and considered rather than as a dark SaaS
+        // template. Variables are emitted by next/font in layout.tsx.
+        sans: ["var(--font-sans)", "-apple-system", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
+        serif: ["var(--font-display)", "Georgia", "serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       borderRadius: {
-        // Softer than Tailwind's defaults — closer to the continuous corners
-        // used across macOS surfaces.
         DEFAULT: "0.5rem",
         md: "0.625rem",
         lg: "0.875rem",
         xl: "1.125rem",
-        "2xl": "1.375rem",
+        "2xl": "1.5rem",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(0,0,0,0.6), 0 8px 24px -12px rgba(0,0,0,0.9)",
-        raised: "0 2px 6px rgba(0,0,0,0.7), 0 16px 40px -16px rgba(0,0,0,0.95)",
-        glow: "0 0 0 1px rgba(48,209,88,0.28), 0 0 28px -6px rgba(48,209,88,0.35)",
+        // Warm-tinted rather than neutral black — shadows over a bone background
+        // look muddy if they are pure grey.
+        card: "0 1px 2px rgb(41 34 26 / 0.04), 0 2px 6px -1px rgb(41 34 26 / 0.06)",
+        raised: "0 2px 4px rgb(41 34 26 / 0.05), 0 12px 28px -8px rgb(41 34 26 / 0.14)",
+        instrument: "inset 0 1px 0 rgb(255 255 255 / 0.03), 0 18px 40px -24px rgb(0 0 0 / 0.9)",
+        glow: "0 0 0 1px rgb(var(--accent) / 0.25), 0 0 24px -6px rgb(var(--accent) / 0.35)",
       },
       transitionTimingFunction: {
-        // Apple's standard ease — noticeably calmer than Tailwind's default.
         apple: "cubic-bezier(0.32, 0.72, 0, 1)",
       },
     },
