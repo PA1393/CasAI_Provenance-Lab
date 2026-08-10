@@ -23,11 +23,11 @@ const EDIT_PHASE = 3;
 // protospacer is the green accent, the PAM is a bright neutral landmark, and
 // the converted base is the only warm colour on the track.
 const COLORS = {
-  context: "#6e6e73", // muted — bases outside the guide
-  guide: "#30d158", // accent — protospacer
-  pam: "#f5f5f7", // text — PAM as a bright landmark
-  edited: "#ff9f0a", // accent-amber — the converted base
-  border: "#1e1e1e",
+  context: "#7c8a83", // muted — bases outside the guide
+  guide: "#3dd68c", // accent — protospacer
+  pam: "#e7eee9", // text — PAM as a bright landmark
+  edited: "#e8a04a", // accent-amber — the converted base
+  border: "#202a25",
 };
 
 const CHAR_W = 13;

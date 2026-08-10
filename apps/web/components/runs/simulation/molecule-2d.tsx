@@ -19,16 +19,16 @@ type Props = {
 // The one warm colour is reserved for the converted base, so the edit is the
 // only thing on the canvas that isn't black, white, grey or green.
 const COLORS = {
-  bg: "#000000",
-  strandA: "#30d158", // accent — sense strand
-  strandB: "#6e6e73", // muted — antisense strand
-  rung: "#242424",
-  cas9: "#2c2c2c", // enzyme body, neutral so it never competes with the edit
-  cas9Core: "#30d158",
-  guide: "#f5f5f7", // guide RNA reads as a bright landmark
-  editFrom: "#a1a1a6",
-  editTo: "#ff9f0a",
-  text: "#6e6e73",
+  bg: "#121815",
+  strandA: "#3dd68c", // accent — sense strand
+  strandB: "#7c8a83", // muted — antisense strand
+  rung: "#202a25",
+  cas9: "#303e36", // enzyme body, neutral so it never competes with the edit
+  cas9Core: "#3dd68c",
+  guide: "#e7eee9", // guide RNA reads as a bright landmark
+  editFrom: "#a0b0a8",
+  editTo: "#e8a04a",
+  text: "#7c8a83",
 };
 
 export function Molecule2D({ phase, guideRna }: Props) {
@@ -186,7 +186,7 @@ export function Molecule2D({ phase, guideRna }: Props) {
       ctx.ellipse(scanX + 16, midY + 6, 18, 16, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = "#f5f5f7";
+      ctx.fillStyle = "#e7eee9";
       ctx.font = "bold 9px monospace";
       ctx.fillText("Cas9", scanX, midY);
 

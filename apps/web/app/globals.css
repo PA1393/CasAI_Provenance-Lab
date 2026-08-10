@@ -2,32 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-  --bg: #000000;
-  --bg-card: #0c0c0c;
-  --bg-elevated: #151515;
-  --border: #1e1e1e;
-  --border-strong: #2c2c2c;
-  --text: #f5f5f7;
-  --text-secondary: #a1a1a6;
-  --muted: #6e6e73;
-  --accent: #30d158;
-  --accent-dim: #248a3d;
-  --accent-red: #ff453a;
-  --accent-amber: #ff9f0a;
-  --accent-green: #30d158;
+/* ── Warm clinical palette ────────────────────────────────────────────────
+   Bone rather than white, warm ink rather than black, and a deep forest green
+   instead of an electric one. Greys carry a little warmth so nothing on the
+   page reads as cold screen-grey.
 
-  /* --font-display and --font-mono are injected by next/font in layout.tsx.
-     Only the fallbacks live here, so the two never fight over the same name. */
+   Values are space-separated RGB triplets because tailwind.config.ts wraps
+   each one in rgb(... / <alpha-value>), which is what keeps `/40` opacity
+   modifiers working. */
+:root {
+  color-scheme: light;
+
+  --bg: 250 247 242;
+  --bg-card: 255 255 255;
+  --bg-sunken: 243 238 230;
+  --border: 231 223 211;
+  --border-strong: 213 202 186;
+  --text: 26 23 20;
+  --text-secondary: 92 85 74;
+  --muted: 133 124 110;
+
+  --accent: 20 104 74;
+  --accent-bright: 26 133 94;
+  --accent-soft: 232 241 235;
+  --accent-amber: 176 112 52;
+  --accent-red: 168 68 46;
+
   --font-fallback: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
     sans-serif;
   --font-mono-fallback: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* ── Instrument surface ───────────────────────────────────────────────────
+   Applied to the simulation console. Redefining the variables here re-skins
+   everything inside — the sequence track, the canvases, their labels — to the
+   dark green-on-black readout the pipeline visuals were designed for, while
+   the rest of the application stays warm and clinical. No component needs to
+   know which context it is rendering into. */
+.instrument {
+  color-scheme: dark;
+
+  --bg: 11 15 13;
+  --bg-card: 18 24 21;
+  --bg-sunken: 8 11 10;
+  --border: 32 42 37;
+  --border-strong: 48 62 54;
+  --text: 231 238 233;
+  --text-secondary: 160 176 168;
+  --muted: 124 138 131;
+
+  --accent: 61 214 140;
+  --accent-bright: 122 235 176;
+  --accent-soft: 17 40 29;
+  --accent-amber: 232 160 74;
+  --accent-red: 232 106 82;
+
+  color: rgb(var(--text));
+}
+
 * {
   box-sizing: border-box;
-  border-color: var(--border);
+  border-color: rgb(var(--border));
 }
 
 html {
@@ -38,26 +73,25 @@ html,
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font-display), var(--font-fallback);
+  background-color: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family: var(--font-sans), var(--font-fallback);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* Two very low-opacity washes instead of a patterned background: enough to
-   keep a pure-black page from looking flat, not enough to read as decoration. */
+/* A barely-there warm wash so a large bone field has some depth to it. */
 body {
   background-image:
     radial-gradient(
-      1100px 600px at 50% -15%,
-      rgba(48, 209, 88, 0.07),
-      transparent 70%
+      1200px 700px at 15% -10%,
+      rgb(20 104 74 / 0.05),
+      transparent 65%
     ),
     radial-gradient(
-      800px 500px at 100% 0%,
-      rgba(255, 255, 255, 0.022),
+      900px 600px at 100% 0%,
+      rgb(176 112 52 / 0.05),
       transparent 60%
     );
   background-attachment: fixed;
@@ -69,23 +103,17 @@ a {
   text-decoration: none;
 }
 
-/* Kept under the original class name so every existing heading picks up the
-   new treatment without a component edit. The look is now tightly tracked
-   Space Grotesk rather than a serif. */
+/* ── Typography ───────────────────────────────────────────────────────────
+   Kept under the original class name so every existing heading picks up the
+   treatment without a component edit. Now a warm serif: unlike the previous
+   geometric sans, this one ships a true italic, so the accented fragments in
+   the headings render as real editorial italics rather than a synthesised
+   slant — which is why there is no font-style override here any more. */
 .font-serif-display {
-  font-family: var(--font-display), var(--font-fallback);
+  font-family: var(--font-display), Georgia, serif;
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-}
-
-/* Headings used to be a serif, where the italic accent fragments read as
-   editorial. Space Grotesk ships no italic cut, so the browser synthesises an
-   oblique that looks like a slanted mistake at display sizes. Emphasis in
-   headings is carried by the green accent instead. Body copy is untouched. */
-.font-serif-display .italic,
-.font-serif-display.italic {
-  font-style: normal;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
 }
 
 .font-mono-label {
@@ -95,8 +123,7 @@ a {
   font-size: 0.75rem;
 }
 
-/* Lining, fixed-width figures so scores and coordinates don't jitter as they
-   change — matters on the sequence ruler and the run timings. */
+/* Fixed-width figures so scores and bp coordinates don't jitter as they change. */
 .font-mono,
 code,
 pre {
@@ -104,38 +131,53 @@ pre {
   font-feature-settings: "tnum";
 }
 
+/* ── Card elevation ───────────────────────────────────────────────────────
+   Every card surface in the app is `border border-border bg-bg-card`. Giving
+   that utility a warm shadow here lifts every card at once, rather than
+   touching two dozen components. Cards inside the instrument console stay
+   flat — a shadow over near-black just reads as mud. */
+.bg-bg-card {
+  box-shadow:
+    0 1px 2px rgb(41 34 26 / 0.04),
+    0 2px 6px -1px rgb(41 34 26 / 0.06);
+}
+
+.instrument .bg-bg-card,
+.instrument.bg-bg-card {
+  box-shadow: none;
+}
+
 ::selection {
-  background: rgba(48, 209, 88, 0.28);
-  color: var(--text);
+  background: rgb(var(--accent) / 0.18);
+  color: rgb(var(--text));
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid rgb(var(--accent));
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: rgb(var(--border-strong));
   border-radius: 999px;
-  border: 3px solid var(--bg);
+  border: 4px solid rgb(var(--bg));
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3d3d3d;
+  background: rgb(var(--muted));
 }
 
-/* Translucent surface for anything that should float over content. */
 .glass {
-  background: rgba(12, 12, 12, 0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background: rgb(var(--bg) / 0.78);
+  backdrop-filter: saturate(160%) blur(16px);
+  -webkit-backdrop-filter: saturate(160%) blur(16px);
 }
 
 @keyframes pulse-soft {
@@ -163,7 +205,7 @@ pre {
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(48, 209, 88, 0.07),
+    rgb(var(--accent) / 0.08),
     transparent
   );
   background-size: 1000px 100%;

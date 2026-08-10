@@ -74,7 +74,14 @@ export function RunSimulation({
   const current = PHASES[phase];
 
   return (
-    <div className="flex flex-col gap-5">
+    // The console is the one dark surface in the application. Everything the
+    // pipeline actually renders — the sequence readout, the helix, the
+    // structure — was designed as green-on-black instrumentation, and setting
+    // it into the warm clinical page the way a real bench instrument sits on a
+    // bench reads far better than tinting the whole product dark. The
+    // `instrument` class swaps the palette for this subtree (see globals.css);
+    // nothing inside needs to know which context it renders into.
+    <div className="instrument flex flex-col gap-5 rounded-xl border border-border bg-bg p-5 shadow-instrument">
       {/* phase timeline */}
       <div className="flex items-center gap-2">
         {PHASES.map((p, i) => (

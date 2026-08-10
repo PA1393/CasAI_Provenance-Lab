@@ -30,10 +30,10 @@ const CRISPR_STRUCTURES = [
 // Mirrors the theme tokens in tailwind.config.ts — Mol* needs literals. Nucleic
 // acid and the engaged protein stay in the monochrome/green range; the warm
 // tone is reserved for the post-edit state so it reads as the one change.
-const NUCLEIC_COLOR = Color.fromHexStyle("#30d158");
-const SURFACE_ENGAGE_COLOR = Color.fromHexStyle("#3a3a3c");
-const SURFACE_EDIT_COLOR = Color.fromHexStyle("#ff9f0a");
-const STICK_EDIT_COLOR = Color.fromHexStyle("#ff9f0a");
+const NUCLEIC_COLOR = Color.fromHexStyle("#3dd68c");
+const SURFACE_ENGAGE_COLOR = Color.fromHexStyle("#3d4a43");
+const SURFACE_EDIT_COLOR = Color.fromHexStyle("#e8a04a");
+const STICK_EDIT_COLOR = Color.fromHexStyle("#e8a04a");
 
 interface StructureRefs {
   structure: StateObjectSelector;
