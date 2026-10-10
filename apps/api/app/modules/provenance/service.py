@@ -4,12 +4,13 @@ import logging
 from datetime import UTC, datetime
 
 from app.db import get_supabase
+from app.schemas.contracts import CONTRACT_SCHEMA_VERSION, ProvenanceStage
 
 logger = logging.getLogger(__name__)
 
 # Ordered pipeline stages that may emit a provenance event. `summary` is a
 # terminal run state, not an emitted event (see CLAUDE.md), so it is excluded.
-EMITTABLE_STAGES = ("input", "fields", "extract", "simulate", "score", "results")
+EMITTABLE_STAGES = tuple(stage.value for stage in ProvenanceStage)
 
 
 def list_provenance_events(run_id: str) -> list[dict]:
@@ -48,6 +49,7 @@ def emit(
         )
 
     event = {
+        "schema_version": CONTRACT_SCHEMA_VERSION,
         "run_id": run_id,
         "stage": stage,
         "event_type": event_type,
