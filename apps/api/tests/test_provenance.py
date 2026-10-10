@@ -34,6 +34,7 @@ def test_emit_writes_a_row(monkeypatch) -> None:
     assert rec.inserted["event_type"] == "simulation_executed"
     assert rec.inserted["payload"] == {"k": "v"}
     assert rec.inserted["duration_ms"] == 42
+    assert rec.inserted["schema_version"] == 1
     assert "occurred_at" in rec.inserted  # stamped here, not left to the DB default
     assert row["run_id"] == "run-1"
 
