@@ -60,6 +60,9 @@ bun run check:api
 - `docs` - architecture and setup notes
 - `test-fixtures` - sample fixture storage for early development
 
+Core data contracts and rights invariants are documented in
+[`docs/core-contracts.md`](docs/core-contracts.md).
+
 ## Requirements
 
 - Bun 1.3+
