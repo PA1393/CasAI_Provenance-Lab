@@ -1,4 +1,4 @@
-# Handles GET /api/v1/runs/{run_id}/provenance — returns the event history for a specific run. Data is fake/mock for now.
+# Returns the stored event history for GET /api/v1/runs/{run_id}/provenance.
 # Data shape is in schemas/provenance.py; the data itself comes from modules/provenance/service.py.
 
 from fastapi import APIRouter
@@ -14,4 +14,3 @@ def get_provenance(run_id: str) -> ProvenanceResponse:
     return ProvenanceResponse(
         items=[ProvenanceEvent(**event) for event in list_provenance_events(run_id)]
     )
-

@@ -71,3 +71,13 @@ The root API scripts use the backend interpreter at `apps/api/.venv` directly.
 They do not use a repo-root `.venv` or whichever `python` happens to be on `PATH`.
 
 The frontend expects the backend at `http://127.0.0.1:8000` by default.
+
+## Information Processor milestone
+
+The new backend intake module provides strict contracts, record-preserving FASTA
+and pasted-sequence validation, declared DNA/RNA/protein handling, field origins,
+original-artifact checksums and incomplete research drafts. It remains separate
+from the current API and UI until the persistence/confirmation milestone.
+
+See [Information Processor contracts and validation](docs/information-processor.md)
+for supported input policies, limitations and the targeted test command.
