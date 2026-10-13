@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from supabase import create_client
 
-
 EMBEDDING_MODEL = "text-embedding-3-small"
 EXPECTED_DIMENSIONS = 1536
 
