@@ -1,205 +1,366 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { createResearchObject } from "@/lib/api/client";
+import {
+  inspectFastaUpload,
+  MAX_UPLOAD_BYTES,
+  type FastaReview,
+} from "@/lib/uploads/fasta-review";
 
-// Mirrors parse_fasta's max_length on the backend, so an oversized file is
-// rejected before the browser reads it into memory.
-const MAX_UPLOAD_BYTES = 10_000_000;
+type IntakeStep = "details" | "review";
 
-// Only FASTA carries a sequence the base-edit pipeline can parse; the other
-// types are accepted as metadata but contribute no bases.
-const TYPE_BY_EXTENSION: Record<string, string> = {
-  fasta: "fasta",
-  fa: "fasta",
-  fna: "fasta",
-  fastq: "fastq",
-  fq: "fastq",
-  vcf: "vcf",
-};
+function readFileText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === "string"
+        ? resolve(reader.result)
+        : reject(new Error("File was not read as text"));
+    reader.onerror = () => reject(reader.error ?? new Error("File could not be read"));
+    reader.readAsText(file, "utf-8");
+  });
+}
 
 export function InputBundleForm() {
   const router = useRouter();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [step, setStep] = useState<IntakeStep>("details");
   const [name, setName] = useState("");
-  const [inputFilename, setInputFilename] = useState("");
-  const [inputFileType, setInputFileType] = useState("fastq");
   const [pdbId, setPdbId] = useState("");
   const [targetStart, setTargetStart] = useState("");
   const [targetEnd, setTargetEnd] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [fastaText, setFastaText] = useState("");
+  const [review, setReview] = useState<FastaReview | null>(null);
+  const [reading, setReading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fastaText, setFastaText] = useState<string | null>(null);
-  const [reading, setReading] = useState(false);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    setFastaText(null);
+  async function inspectFile(selected: File | null) {
+    setStep("details");
+    setFile(selected);
+    setFastaText("");
+    setReview(null);
     setError(null);
-    if (!file) return;
-    setInputFilename(file.name);
+    if (!selected) return;
 
-    // Infer the type from the extension: the select defaults to FASTQ, and
-    // leaving it there on a FASTA upload would silently drop the sequence.
-    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-    const detected = TYPE_BY_EXTENSION[extension];
-    const effectiveType = detected ?? inputFileType;
-    if (detected) setInputFileType(detected);
-    if (effectiveType !== "fasta") return;
-
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setError(
-        `File is ${(file.size / 1_000_000).toFixed(1)} MB — the maximum is ` +
-          `${MAX_UPLOAD_BYTES / 1_000_000} MB.`,
-      );
+    if (selected.size > MAX_UPLOAD_BYTES) {
+      setReview(inspectFastaUpload(selected.name, selected.size, ""));
       return;
     }
 
     setReading(true);
     try {
-      setFastaText(await file.text());
+      const text = await readFileText(selected);
+      setFastaText(text);
+      setReview(inspectFastaUpload(selected.name, selected.size, text));
     } catch {
-      setError("Could not read the selected file.");
+      setError("The selected file could not be read. Choose it again or use another file.");
     } finally {
       setReading(false);
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function targetRegion(): number[] | undefined {
+    const start = Number.parseInt(targetStart, 10);
+    const end = Number.parseInt(targetEnd, 10);
+    return targetStart && targetEnd && start >= 0 && end > start ? [start, end] : undefined;
+  }
+
+  function openReview(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!file || !review?.ready) {
+      setError("Choose a valid FASTA file before continuing.");
+      return;
+    }
+    if (!/^[A-Z0-9]{4}$/.test(pdbId)) {
+      setError("Enter a four-character PDB ID, such as 1ABC.");
+      return;
+    }
+    if ((targetStart || targetEnd) && !targetRegion()) {
+      setError("Target coordinates require a start of 0 or greater and an end after the start.");
+      return;
+    }
+    setStep("review");
+  }
+
+  async function createObject() {
+    if (!file || !review?.ready) return;
     setError(null);
     setSubmitting(true);
     try {
-      const start = parseInt(targetStart);
-      const end = parseInt(targetEnd);
-      const target_region =
-        targetStart && targetEnd && !isNaN(start) && !isNaN(end) && start < end
-          ? [start, end]
-          : undefined;
-
       const created = await createResearchObject({
-        name,
-        input_filename: inputFilename,
-        input_file_type: inputFileType,
+        name: name.trim(),
+        input_filename: file.name,
+        input_file_type: "fasta",
         pdb_id: pdbId,
-        ...(target_region ? { target_region } : {}),
-        // Sending the text is what gives the research object a sequence, and so
-        // what lets a run get past the pipeline's input stage.
-        ...(inputFileType === "fasta" && fastaText ? { fasta_text: fastaText } : {}),
+        fasta_text: fastaText,
+        ...(targetRegion() ? { target_region: targetRegion() } : {}),
       });
       router.push(`/research-objects/${created.research_object_id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Submission failed.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The research object was not created.");
       setSubmitting(false);
     }
   }
 
-  const inputBase =
-    "w-full bg-bg-card border border-border rounded px-4 py-3 text-text font-sans focus:border-accent focus:outline-none transition-colors";
+  if (step === "review" && file && review) {
+    return (
+      <section
+        className="overflow-hidden rounded-xl border border-border-strong bg-bg-card"
+        aria-labelledby="review-title"
+      >
+        <div className="grid border-b border-border bg-bg-sunken md:grid-cols-[1fr_auto] md:items-end">
+          <div className="p-6 md:p-8">
+            <p className="text-sm font-medium text-accent">Ready to create</p>
+            <h2 id="review-title" className="mt-2 font-serif-display text-3xl">
+              Review the immutable record
+            </h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">
+              Check the source and coordinates now. After creation, changes become a new
+              version instead of replacing this record.
+            </p>
+          </div>
+          <div className="border-t border-border px-6 py-5 md:border-l md:border-t-0 md:px-8">
+            <p className="text-xs text-muted">Upload behavior</p>
+            <p className="mt-1 font-medium">Sent only after confirmation</p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-[minmax(0,1fr)_17rem]">
+          <div className="min-w-0 p-6 md:p-8">
+            <p className="text-sm font-semibold">{name.trim()}</p>
+            <p className="mt-1 break-all text-sm text-text-secondary">{file.name}</p>
+            <div className="mt-6 rounded-lg bg-bg-sunken p-4">
+              <p className="mb-3 text-xs font-medium text-muted">Normalized sequence preview</p>
+              <code className="block break-all text-sm leading-7 text-text">{review.preview}</code>
+            </div>
+            {review.issues.map((issue) => (
+              <p key={issue.message} className="mt-4 text-sm text-accent-amber">
+                {issue.message}
+              </p>
+            ))}
+          </div>
+          <dl className="grid grid-cols-2 border-t border-border bg-bg-sunken/60 p-6 md:block md:border-l md:border-t-0 md:p-8">
+            <ReviewFact label="Format" value="FASTA" />
+            <ReviewFact label="Sequence" value={`${review.sequenceLength.toLocaleString()} bp`} />
+            <ReviewFact label="GC content" value={`${(review.gcContent * 100).toFixed(1)}%`} />
+            <ReviewFact label="Records" value={review.recordCount.toString()} />
+            <ReviewFact label="Ambiguous bases" value={review.ambiguousBases.toLocaleString()} />
+            <ReviewFact label="PDB structure" value={pdbId} />
+            {targetRegion() && (
+              <ReviewFact label="Target window" value={`${targetStart}–${targetEnd}`} />
+            )}
+          </dl>
+        </div>
+
+        {error && <ErrorMessage message={error} />}
+        <div className="flex flex-col-reverse gap-3 border-t border-border p-6 sm:flex-row sm:justify-end md:px-8">
+          <button
+            type="button"
+            onClick={() => setStep("details")}
+            disabled={submitting}
+            className="rounded-lg border border-border-strong px-5 py-3 text-sm font-semibold hover:bg-bg-sunken disabled:opacity-50"
+          >
+            Back to edit
+          </button>
+          <button
+            type="button"
+            onClick={createObject}
+            disabled={submitting}
+            className="rounded-lg bg-text px-5 py-3 text-sm font-semibold text-bg hover:bg-accent disabled:opacity-50"
+          >
+            {submitting ? "Creating record…" : "Create research object"}
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <form
-      onSubmit={handleSubmit}
-      className="rounded-lg border border-border bg-bg-card p-6"
+      onSubmit={openReview}
+      className="overflow-hidden rounded-xl border border-border-strong bg-bg-card"
     >
-      <div className="flex flex-col gap-5">
-        <FormLabel label="NAME" required>
+      <div className="grid border-b border-border md:grid-cols-[minmax(0,1fr)_15rem]">
+        <div className="p-6 md:p-8">
+          <label htmlFor="sequence-file" className="text-sm font-semibold">
+            Sequence source
+          </label>
+          <p className="mt-1 text-sm leading-6 text-text-secondary">
+            FASTA, FA, or FNA · up to 10 MB
+          </p>
           <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            placeholder="e.g. BRCA2 base-edit trial"
-            className={inputBase}
-          />
-        </FormLabel>
-
-        <FormLabel label="INPUT FILE" required>
-          <input
+            ref={fileInput}
+            id="sequence-file"
             type="file"
-            onChange={handleFileChange}
+            accept=".fasta,.fa,.fna"
             required
-            className={`${inputBase} file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:bg-border file:text-text file:font-mono file:text-xs file:cursor-pointer hover:file:bg-accent/20`}
+            onChange={(event) => void inspectFile(event.target.files?.[0] ?? null)}
+            className="sr-only"
           />
-          {inputFilename && (
-            <span className="font-mono text-xs text-muted mt-1 block">
-              {inputFilename}
-              {reading && " · reading…"}
-              {!reading && fastaText && (
-                <span className="text-accent">
-                  {` · ${fastaText.length.toLocaleString()} chars — sequence will be parsed`}
-                </span>
-              )}
-              {!reading && !fastaText && inputFileType !== "fasta" && (
-                <span className="text-accent-amber">
-                  {" · no sequence — only FASTA is parsed, so runs will stop at the input stage"}
-                </span>
-              )}
-            </span>
-          )}
-        </FormLabel>
-
-        <FormLabel label="FILE TYPE" required>
-          <select
-            value={inputFileType}
-            onChange={(e) => setInputFileType(e.target.value)}
-            className={inputBase}
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="mt-5 w-full rounded-lg border border-dashed border-border-strong bg-bg-sunken px-5 py-8 text-left hover:border-accent"
           >
-            <option value="fastq">FASTQ</option>
-            <option value="fasta">FASTA</option>
-            <option value="vcf">VCF</option>
-            <option value="other">Other</option>
-          </select>
-        </FormLabel>
-
-        <FormLabel label="PDB ID" required>
-          <input
-            type="text"
-            value={pdbId}
-            onChange={(e) => setPdbId(e.target.value.toUpperCase())}
-            required
-            maxLength={4}
-            placeholder="e.g. 1ABC"
-            className={inputBase}
-          />
-        </FormLabel>
+            <span className="block font-medium">
+              {file ? file.name : "Choose a sequence file"}
+            </span>
+            <span className="mt-2 block text-sm text-muted">
+              {reading
+                ? "Reading locally…"
+                : file
+                  ? `${(file.size / 1000).toLocaleString()} KB selected`
+                  : "The file stays in your browser until you create the record."}
+            </span>
+          </button>
+        </div>
+        <div className="border-t border-border bg-bg-sunken/60 p-6 md:border-l md:border-t-0 md:p-8">
+          <p className="text-xs font-medium text-muted">Intake check</p>
+          <p
+            className={`mt-2 text-sm font-semibold ${review?.ready ? "text-accent" : "text-text-secondary"}`}
+          >
+            {reading
+              ? "Inspecting file"
+              : review?.ready
+                ? "Sequence is valid"
+                : review
+                  ? "Needs attention"
+                  : "Waiting for file"}
+          </p>
+          {review && (
+            <p className="mt-3 text-sm leading-6 text-text-secondary">
+              {review.sequenceLength.toLocaleString()} bp ·{" "}
+              {(review.gcContent * 100).toFixed(1)}% GC
+            </p>
+          )}
+        </div>
       </div>
 
-      {error && (
-        <p className="mt-4 rounded-lg border border-accent-red/40 bg-bg px-4 py-3 font-mono text-xs text-accent-red">
-          ERROR: {error}
-        </p>
-      )}
+      <div className="grid gap-6 p-6 md:grid-cols-2 md:p-8">
+        <Field label="Research object name" htmlFor="object-name">
+          <input
+            id="object-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            placeholder="BRCA2 base-edit trial"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="PDB structure ID" htmlFor="pdb-id" hint="Four letters or numbers">
+          <input
+            id="pdb-id"
+            value={pdbId}
+            onChange={(event) => setPdbId(event.target.value.toUpperCase())}
+            required
+            maxLength={4}
+            placeholder="1ABC"
+            className={inputClass}
+          />
+        </Field>
+        <fieldset className="md:col-span-2">
+          <legend className="text-sm font-semibold">
+            Target window <span className="font-normal text-muted">(optional)</span>
+          </legend>
+          <p className="mt-1 text-sm text-text-secondary">
+            Use zero-based coordinates. Leave both fields empty to review the full sequence.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <input
+              aria-label="Target start"
+              inputMode="numeric"
+              min="0"
+              type="number"
+              value={targetStart}
+              onChange={(event) => setTargetStart(event.target.value)}
+              placeholder="Start"
+              className={inputClass}
+            />
+            <input
+              aria-label="Target end"
+              inputMode="numeric"
+              min="1"
+              type="number"
+              value={targetEnd}
+              onChange={(event) => setTargetEnd(event.target.value)}
+              placeholder="End"
+              className={inputClass}
+            />
+          </div>
+        </fieldset>
+      </div>
 
-      <button
-        type="submit"
-        disabled={submitting || reading}
-        className="mt-6 inline-flex font-mono text-xs tracking-[0.2em] uppercase font-semibold px-6 py-3 rounded bg-text text-bg hover:bg-accent transition-colors disabled:opacity-50"
-      >
-        {submitting ? "Creating…" : reading ? "Reading file…" : "Create Research Object →"}
-      </button>
+      {review?.issues.map((issue) => (
+        <ErrorMessage
+          key={issue.message}
+          message={issue.message}
+          warning={issue.severity === "warning"}
+        />
+      ))}
+      {error && <ErrorMessage message={error} />}
+      <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-5 md:px-8">
+        <p className="text-xs leading-5 text-muted">
+          Nothing is uploaded until you confirm the review.
+        </p>
+        <button
+          type="submit"
+          disabled={reading || !review?.ready}
+          className="shrink-0 rounded-lg bg-text px-5 py-3 text-sm font-semibold text-bg hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Review upload
+        </button>
+      </div>
     </form>
   );
 }
 
-function FormLabel({
+const inputClass =
+  "mt-2 w-full rounded-lg border border-border-strong bg-bg-card px-4 py-3 text-text placeholder:text-muted focus:border-accent focus:outline-none";
+
+function Field({
   label,
-  required,
-  small,
+  htmlFor,
+  hint,
   children,
 }: {
   label: string;
-  required?: boolean;
-  small?: boolean;
+  htmlFor: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <label className={`flex flex-col gap-2 ${small ? "flex-1" : ""}`}>
-      <span className="font-mono text-[10px] tracking-[0.2em] uppercase font-semibold text-muted">
-        {label} {required && <span className="text-accent">*</span>}
-      </span>
+    <div>
+      <label htmlFor={htmlFor} className="text-sm font-semibold">
+        {label}
+      </label>
+      {hint && <span className="ml-2 text-xs text-muted">{hint}</span>}
       {children}
-    </label>
+    </div>
+  );
+}
+
+function ReviewFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="mb-5">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold text-text">{value}</dd>
+    </div>
+  );
+}
+
+function ErrorMessage({ message, warning = false }: { message: string; warning?: boolean }) {
+  return (
+    <p
+      role={warning ? "status" : "alert"}
+      className={`border-t border-border px-6 py-3 text-sm md:px-8 ${warning ? "bg-bg-sunken text-accent-amber" : "bg-red-50 text-accent-red"}`}
+    >
+      {message}
+    </p>
   );
 }
