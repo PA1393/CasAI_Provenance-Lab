@@ -1,9 +1,11 @@
-"""Pure, bounded FASTQ inspection and header hints; no retrieval or alignment."""
+"""Pure, bounded FASTQ/VCF inspection. No retrieval, alignment, approval, or haplotypes."""
 
 from __future__ import annotations
 
 import gzip
 import io
+import json
+import math
 import re
 import zlib
 from collections.abc import Iterator
@@ -18,13 +20,16 @@ from app.modules.information_processor.contracts import (
     FieldValue,
     MissingField,
     ProcessingNotice,
+    checksum,
 )
 from app.modules.information_processor.datasets import (
     DatasetArtifact,
     DatasetDraft,
     ReadRecord,
+    SampleCall,
+    VariantRecord,
 )
-from app.modules.information_processor.parser import InputValidationError
+from app.modules.information_processor.parser import InputValidationError, parse_sequences
 
 
 class DatasetLimits(Contract):
@@ -264,4 +269,242 @@ def process_fastq(
                 message="Raw reads are not an assembled reference or editing result",
             ),
         ),
+    )
+
+
+def _genotype(raw: str, alternative_count: int, line: int):
+    if not re.fullmatch(r"(?:\.|[0-9]+)(?:[/|](?:\.|[0-9]+))*", raw, flags=re.ASCII):
+        _fail("invalid_genotype", "Unsupported or malformed GT value", line)
+    if "/" in raw and "|" in raw:
+        _fail("unsupported_genotype", "Mixed-phase genotypes require a richer adapter", line)
+    try:
+        alleles = tuple(None if value == "." else int(value) for value in re.split(r"[/|]", raw))
+    except ValueError:
+        _fail("invalid_genotype", "GT integer exceeds supported parsing limits", line)
+    if any(value is not None and value > alternative_count for value in alleles):
+        _fail("invalid_genotype", "GT index exceeds the number of REF/ALT alleles", line)
+    return alleles, "|" in raw if len(alleles) > 1 else None
+
+
+def process_vcf(
+    content: bytes,
+    *,
+    filename: str = "variants.vcf",
+    sample_id: str | None = None,
+    reference_assembly: str | None = None,
+    reference_content: bytes | None = None,
+    limits: DatasetLimits = DatasetLimits(),
+) -> DatasetDraft:
+    """Inspect VCF 4.2–4.5 literal alleles; preserve INFO/FORMAT without interpreting them."""
+    artifact = _artifact(content, filename, "variants", limits)
+    lines = iter(_lines(artifact, limits))
+    variants = []
+    metadata = []
+    artifact_hash = artifact.checksum
+    normalization_notices = []
+    try:
+        _, first = next(lines, (0, ""))
+        if first not in {f"##fileformat=VCFv4.{version}" for version in range(2, 6)}:
+            _fail("unsupported_vcf_version", "Declare a supported VCF 4.2–4.5 fileformat header", 1)
+        version = first.split("=", 1)[1]
+        metadata.append(first)
+        for number, line in lines:
+            if line.startswith("##"):
+                metadata.append(line)
+                continue
+            header = line.split("\t")
+            if header[:8] != ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]:
+                _fail(
+                    "invalid_vcf_header", "VCF needs its eight fixed tab-delimited columns", number
+                )
+            if len(header) == 9 or (len(header) > 8 and header[8] != "FORMAT"):
+                _fail(
+                    "invalid_vcf_header", "FORMAT must be followed by named sample columns", number
+                )
+            samples = tuple(header[9:])
+            if any(not name or any(char.isspace() for char in name) for name in samples):
+                _fail(
+                    "invalid_vcf_header", "Sample names must be nonempty without whitespace", number
+                )
+            if len(set(samples)) != len(samples):
+                _fail("invalid_vcf_header", "Sample names must be unique", number)
+            break
+        else:
+            _fail("invalid_vcf_header", "Missing #CHROM header")
+        for number, line in lines:
+            if len(variants) >= limits.max_records:
+                _fail("too_many_records", "Variant count exceeds inspection budget", number)
+            fields = line.split("\t")
+            if len(fields) != len(header) or any(not field for field in fields):
+                _fail("invalid_vcf_record", "VCF row does not match its column header", number)
+            chrom, pos, ids, ref, alt, qual, filters, info = fields[:8]
+            if any(char.isspace() for char in chrom) or chrom.startswith("#"):
+                _fail("invalid_contig", "Invalid CHROM identifier", number)
+            if not re.fullmatch(r"[0-9]+", pos, flags=re.ASCII):
+                _fail("invalid_position", "Only positive 1-based positions are supported", number)
+            try:
+                position = int(pos)
+            except ValueError:
+                _fail("invalid_position", "POS integer exceeds supported parsing limits", number)
+            if position < 1:
+                _fail("invalid_position", "Only positive 1-based positions are supported", number)
+            if any(char.islower() for char in ref + alt):
+                normalization_notices.append(
+                    ProcessingNotice(
+                        code="case_normalized",
+                        message="VCF alleles normalized to uppercase",
+                        record_id=f"line:{number}",
+                    )
+                )
+            alternatives = tuple(alt.upper().split(",")) if alt != "." else ()
+            ref = ref.upper()
+            if any(not allele or set(allele) - set("ACGTN") for allele in (ref, *alternatives)):
+                _fail(
+                    "unsupported_allele",
+                    "Symbolic, breakend and non-literal alleles are unsupported",
+                    number,
+                )
+            if len(set(alternatives)) != len(alternatives) or ref in alternatives:
+                _fail("invalid_alleles", "ALT alleles must be distinct and differ from REF", number)
+            if qual != "." and not re.fullmatch(
+                r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?", qual, re.ASCII
+            ):
+                _fail(
+                    "invalid_variant_quality", "QUAL must be a VCF numeric value or missing", number
+                )
+            try:
+                quality = None if qual == "." else float(qual)
+            except ValueError:
+                _fail("invalid_variant_quality", "QUAL must be numeric or missing", number)
+            if quality is not None and (not math.isfinite(quality) or quality < 0):
+                _fail("invalid_variant_quality", "QUAL must be finite and nonnegative", number)
+            filter_values = None if filters == "." else tuple(filters.split(";"))
+            if filter_values is not None and (
+                any(not value or any(char.isspace() for char in value) for value in filter_values)
+                or len(set(filter_values)) != len(filter_values)
+                or ("PASS" in filter_values and len(filter_values) > 1)
+            ):
+                _fail("invalid_filter", "FILTER must be missing, PASS, or named filters", number)
+            keys = tuple(fields[8].split(":")) if samples else ()
+            if keys and (any(not key or key == "." for key in keys) or len(set(keys)) != len(keys)):
+                _fail("invalid_format", "FORMAT keys must be nonempty and unique", number)
+            if "GT" in keys and keys[0] != "GT":
+                _fail("invalid_format", "GT must be the first FORMAT key", number)
+            calls = []
+            for name, raw in zip(samples, fields[9:], strict=True):
+                values = tuple(raw.split(":"))
+                if len(values) > len(keys) or any(not value for value in values):
+                    _fail("invalid_sample", "Sample values do not match FORMAT", number)
+                values += (".",) * (len(keys) - len(values))
+                genotype, phased = (
+                    _genotype(values[0], len(alternatives), number)
+                    if "GT" in keys
+                    else (None, None)
+                )
+                calls.append(
+                    SampleCall(sample=name, values=values, genotype=genotype, phased=phased)
+                )
+            variants.append(
+                VariantRecord(
+                    contig=chrom,
+                    position=position,
+                    identifiers=tuple(ids.split(";")) if ids != "." else (),
+                    reference=ref,
+                    alternatives=alternatives,
+                    quality=quality,
+                    filters=filter_values,
+                    info=info,
+                    format_keys=keys,
+                    samples=tuple(calls),
+                    source=f"{artifact_hash}#line:{number}",
+                )
+            )
+    finally:
+        lines.close()
+    artifacts = [artifact]
+    assembly = _value(
+        reference_assembly, "researcher reference assembly label; not independently verified"
+    )
+    sample = _value(sample_id, "researcher sample selection")
+    if sample.value is not None and samples and sample.value not in samples:
+        _fail("sample_not_found", "Selected sample is absent from the VCF header")
+    missing = []
+    reference_digest = None
+    if assembly.value is None:
+        missing.append(
+            _gap("reference_assembly", "Assembly is unresolved", "Select an exact assembly")
+        )
+    if samples and sample.value is None:
+        missing.append(
+            _gap("sample_id", "No sample selected", "Select a sample from the VCF header")
+        )
+    if reference_content is None:
+        missing.append(
+            _gap("reference_record", "REF has not been checked", "Attach the exact reference FASTA")
+        )
+    else:
+        reference_artifact = _artifact(reference_content, "reference.fasta", "reference", limits)
+        if reference_artifact.compression != "none":
+            _fail(
+                "unsupported_reference_compression",
+                "Reference FASTA must be uncompressed in this adapter",
+            )
+        parsed = parse_sequences(
+            reference_content,
+            input_format="fasta",
+            molecule_type="DNA",
+            max_bytes=min(limits.max_input_bytes, limits.max_decoded_bytes),
+            max_records=limits.max_records,
+        )
+        reference = {record.record_id: record.sequence for record in parsed}
+        reference_digest = checksum(
+            json.dumps(
+                reference,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        for variant in variants:
+            sequence = reference.get(variant.contig)
+            if sequence is None:
+                _fail("reference_contig_missing", f"Reference lacks contig {variant.contig}")
+            start = variant.position - 1
+            if sequence[start : start + len(variant.reference)] != variant.reference:
+                _fail(
+                    "reference_mismatch",
+                    f"REF does not match supplied sequence at {variant.contig}:{variant.position}",
+                )
+        artifacts.append(reference_artifact)
+    warnings = [
+        *normalization_notices,
+        ProcessingNotice(
+            code="variants_not_haplotype",
+            message="Variants are not a reconstructed genome or editing efficacy result",
+        ),
+        ProcessingNotice(
+            code="vcf_inspection_only",
+            message="INFO/FORMAT metadata retained; tag types/cardinality are not interpreted",
+        ),
+    ]
+    if not variants:
+        warnings.append(
+            ProcessingNotice(
+                code="no_variants", message="Valid VCF header contains no variant records"
+            )
+        )
+    return DatasetDraft(
+        declared_format="vcf",
+        data_role="variants",
+        format_version=version,
+        artifacts=tuple(artifacts),
+        sample_id=sample,
+        quality_encoding=_value(None, "FASTQ quality encoding is not applicable"),
+        reference_assembly=assembly,
+        reference_checked=reference_content is not None,
+        reference_sequence_checksum=reference_digest,
+        variants=tuple(variants),
+        sample_names=samples,
+        metadata_lines=tuple(metadata),
+        missing_fields=tuple(missing),
+        warnings=tuple(warnings),
     )
