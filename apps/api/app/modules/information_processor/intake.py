@@ -79,7 +79,6 @@ class VcfInspectionRequest(InspectionRequest):
             raise ValueError("reference_filename requires reference_content")
         return self
 
-
 IntakeInspectionRequest = Annotated[
     SequenceInspectionRequest | FastqInspectionRequest | VcfInspectionRequest,
     Field(discriminator="declared_format"),

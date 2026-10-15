@@ -1,0 +1,5 @@
+##fileformat=VCFv4.3
+##contig=<ID=synthetic_contig,length=8>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	synthetic_sample
+synthetic_contig	2	.	C	T,G	.	PASS	.	GT	0/1
