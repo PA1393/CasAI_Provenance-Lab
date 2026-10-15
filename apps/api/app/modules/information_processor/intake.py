@@ -70,7 +70,14 @@ class VcfInspectionRequest(InspectionRequest):
     sample_id: str | None = None
     reference_assembly: str | None = None
     reference_content: bytes | None = None
+    reference_filename: str | None = Field(default=None, min_length=1)
     limits: DatasetLimits = DatasetLimits()
+
+    @model_validator(mode="after")
+    def validate_reference_label(self) -> VcfInspectionRequest:
+        if self.reference_filename is not None and self.reference_content is None:
+            raise ValueError("reference_filename requires reference_content")
+        return self
 
 
 IntakeInspectionRequest = Annotated[
@@ -138,6 +145,7 @@ def _inspect(request: IntakeInspectionRequest) -> InspectionDraft:
             sample_id=request.sample_id,
             reference_assembly=request.reference_assembly,
             reference_content=request.reference_content,
+            reference_filename=request.reference_filename or "reference.fasta",
             limits=request.limits,
         )
     raise TypeError("Unsupported inspection request")

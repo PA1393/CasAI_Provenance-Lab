@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import gzip
 import io
-import json
 import math
 import re
 import zlib
@@ -20,7 +19,6 @@ from app.modules.information_processor.contracts import (
     FieldValue,
     MissingField,
     ProcessingNotice,
-    checksum,
 )
 from app.modules.information_processor.datasets import (
     DatasetArtifact,
@@ -29,7 +27,12 @@ from app.modules.information_processor.datasets import (
     SampleCall,
     VariantRecord,
 )
-from app.modules.information_processor.parser import InputValidationError, parse_sequences
+from app.modules.information_processor.parser import InputValidationError
+from app.modules.information_processor.references import (
+    SuppliedReferenceRequest,
+    resolve_supplied_reference,
+    verify_variant_reference,
+)
 
 
 class DatasetLimits(Contract):
@@ -293,6 +296,7 @@ def process_vcf(
     sample_id: str | None = None,
     reference_assembly: str | None = None,
     reference_content: bytes | None = None,
+    reference_filename: str = "reference.fasta",
     limits: DatasetLimits = DatasetLimits(),
 ) -> DatasetDraft:
     """Inspect VCF 4.2–4.5 literal alleles; preserve INFO/FORMAT without interpreting them."""
@@ -443,38 +447,18 @@ def process_vcf(
             _gap("reference_record", "REF has not been checked", "Attach the exact reference FASTA")
         )
     else:
-        reference_artifact = _artifact(reference_content, "reference.fasta", "reference", limits)
-        if reference_artifact.compression != "none":
-            _fail(
-                "unsupported_reference_compression",
-                "Reference FASTA must be uncompressed in this adapter",
+        resolved = resolve_supplied_reference(
+            SuppliedReferenceRequest(
+                content=reference_content,
+                filename=reference_filename,
+                assembly=reference_assembly,
+                max_input_bytes=min(limits.max_input_bytes, limits.max_decoded_bytes),
+                max_records=limits.max_records,
             )
-        parsed = parse_sequences(
-            reference_content,
-            input_format="fasta",
-            molecule_type="DNA",
-            max_bytes=min(limits.max_input_bytes, limits.max_decoded_bytes),
-            max_records=limits.max_records,
         )
-        reference = {record.record_id: record.sequence for record in parsed}
-        reference_digest = checksum(
-            json.dumps(
-                reference,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
-        for variant in variants:
-            sequence = reference.get(variant.contig)
-            if sequence is None:
-                _fail("reference_contig_missing", f"Reference lacks contig {variant.contig}")
-            start = variant.position - 1
-            if sequence[start : start + len(variant.reference)] != variant.reference:
-                _fail(
-                    "reference_mismatch",
-                    f"REF does not match supplied sequence at {variant.contig}:{variant.position}",
-                )
-        artifacts.append(reference_artifact)
+        verification = verify_variant_reference(resolved, tuple(variants))
+        reference_digest = verification.reference_sequence_checksum
+        artifacts.append(resolved.artifact)
     warnings = [
         *normalization_notices,
         ProcessingNotice(
