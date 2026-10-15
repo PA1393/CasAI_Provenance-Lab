@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun run --cwd ../web dev",
     "devUrl": "http://127.0.0.1:3000",
-    "frontendDist": "../shell",
+    "frontendDist": "http://127.0.0.1:3000",
     "removeUnusedCommands": true
   },
   "app": {
@@ -30,7 +30,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.png"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
     "category": "Education",
     "shortDescription": "Provenance-first CRISPR research workflows",
     "longDescription": "Desktop packaging preview for CasAI Provenance Lab research software."
