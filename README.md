@@ -81,3 +81,9 @@ from the current API and UI until the persistence/confirmation milestone.
 
 See [Information Processor contracts and validation](docs/information-processor.md)
 for supported input policies, limitations and the targeted test command.
+
+The next local build set adds bounded FASTQ/VCF inspection, gzip limits, paired
+read validation, exact supplied-FASTA REF checks, and a local command-line entry
+point. See [multi-format intake and usage](docs/multi-format-intake.md).
+This remains independent of API/UI persistence and does not add a desktop
+installer or a physical simulation engine.

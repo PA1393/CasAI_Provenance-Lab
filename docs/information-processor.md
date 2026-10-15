@@ -1,5 +1,9 @@
 # Information Processor contracts and validation
 
+The next local increment adds separate bounded read/variant dataset adapters;
+see [FASTQ/VCF intake and CLI usage](multi-format-intake.md). It does not change
+the sequence `IntakeRequest` into an untyped catch-all file request.
+
 This module prepares non-executable research drafts using pure functions. It is
 the first intake milestone and is not connected to API routes, Supabase, the UI,
 or the existing run pipeline yet. Existing research-object behavior is unchanged.
@@ -102,5 +106,7 @@ and immutable confirmed versions. It must resolve exact reference records before
 calling them database-retrieved, retain reference versions and retrieval metadata,
 and link provenance actors and activities to the stored artifacts. No database
 migration, live reference resolver or confirmation endpoint is part of this pure
-validation milestone. FASTQ, VCF, GenBank files, coordinate/assembly input, tabular
-metadata, PDB/mmCIF and production objective extraction remain unsupported.
+validation milestone. FASTQ and VCF use the separate bounded dataset adapters
+and local CLI described in [multi-format intake](multi-format-intake.md), not
+this sequence request contract. GenBank, general coordinate/assembly files,
+tabular metadata, PDB/mmCIF and production objective extraction remain unsupported.
