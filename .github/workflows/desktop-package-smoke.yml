@@ -1,0 +1,53 @@
+name: Desktop package smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/desktop-package-smoke.yml"
+      - "apps/desktop/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS app
+            platform: macos-latest
+            bundles: app
+          - name: Windows installer
+            platform: windows-latest
+            bundles: nsis
+          - name: Linux packages
+            platform: ubuntu-22.04
+            bundles: deb,appimage
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux desktop dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "apps/desktop/src-tauri -> target"
+
+      - name: Build unsigned desktop package
+        uses: tauri-apps/tauri-action@v1
+        with:
+          projectPath: apps/desktop
+          args: --bundles ${{ matrix.bundles }}
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: "desktop-[platform]-[arch]-[bundle]"
