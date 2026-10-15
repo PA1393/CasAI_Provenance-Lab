@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # Vault(s) queried when a prompt doesn't specify one. Demo scope is crop-only;
     # override with DEFAULT_VAULT in .env once more vaults exist.
     default_vault: str = "crop"
+    scientific_tool_timeout_seconds: int = 900
+    crispor_command: str = "crispor.py"
+    crispor_genome_dir: str = ""
+    cas_offinder_command: str = "cas-offinder"
+    cas_offinder_device: str = "C"
+    crispresso_command: str = "CRISPResso"
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,
