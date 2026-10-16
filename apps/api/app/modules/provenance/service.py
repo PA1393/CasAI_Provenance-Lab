@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from app.db import get_supabase
+from app.modules.integrations.base import ToolExecution, ToolExecutionError
 
 logger = logging.getLogger(__name__)
 
@@ -65,3 +67,35 @@ def emit(
             "provenance emit failed (run=%s stage=%s): %s", run_id, stage, exc
         )
         return None
+
+
+def execute_with_provenance(
+    *,
+    run_id: str,
+    stage: str,
+    operation: Callable[[], ToolExecution],
+) -> ToolExecution:
+    """Run a scientific adapter and record its truthful terminal outcome."""
+
+    try:
+        execution = operation()
+    except ToolExecutionError as exc:
+        emit(
+            run_id,
+            stage,
+            "scientific_tool_failed",
+            f"{exc.tool} failed: {exc.message}",
+            payload=exc.provenance_payload(),
+            duration_ms=exc.duration_ms,
+        )
+        raise
+
+    emit(
+        run_id,
+        stage,
+        "scientific_tool_completed",
+        f"{execution.tool} completed {execution.operation}",
+        payload=execution.provenance_payload(),
+        duration_ms=execution.duration_ms,
+    )
+    return execution

@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     cas_offinder_command: str = "cas-offinder"
     cas_offinder_device: str = "C"
     crispresso_command: str = "CRISPResso"
+    indelphi_python: str = "python"
+    indelphi_model_dir: str = ""
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,
