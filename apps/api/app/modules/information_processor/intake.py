@@ -22,6 +22,12 @@ from app.modules.information_processor.dataset_parser import (
 from app.modules.information_processor.datasets import DatasetDraft
 from app.modules.information_processor.parser import InputValidationError, decode_input
 from app.modules.information_processor.processing import process_input
+from app.modules.information_processor.structure_parser import (
+    StructureLimits,
+    process_mmcif,
+    process_pdb,
+)
+from app.modules.information_processor.structures import StructureDraft
 
 
 class InspectionRequest(Contract):
@@ -73,17 +79,33 @@ class VcfInspectionRequest(InspectionRequest):
     limits: DatasetLimits = DatasetLimits()
 
 
+class PdbInspectionRequest(InspectionRequest):
+    declared_format: Literal["pdb"] = "pdb"
+    filename: str = Field(default="structure.pdb", min_length=1)
+    limits: StructureLimits = StructureLimits()
+
+
+class MmcifInspectionRequest(InspectionRequest):
+    declared_format: Literal["mmcif"] = "mmcif"
+    filename: str = Field(default="structure.cif", min_length=1)
+    limits: StructureLimits = StructureLimits()
+
+
 IntakeInspectionRequest = Annotated[
-    SequenceInspectionRequest | FastqInspectionRequest | VcfInspectionRequest,
+    SequenceInspectionRequest
+    | FastqInspectionRequest
+    | VcfInspectionRequest
+    | PdbInspectionRequest
+    | MmcifInspectionRequest,
     Field(discriminator="declared_format"),
 ]
-InspectionDraft = ResearchDraft | DatasetDraft
+InspectionDraft = ResearchDraft | DatasetDraft | StructureDraft
 
 
 class IntakeInspection(Contract):
     """One reviewable outcome: either a non-executable draft or one rejection issue."""
 
-    declared_format: Literal["fasta", "pasted_sequence", "fastq", "vcf"]
+    declared_format: Literal["fasta", "pasted_sequence", "fastq", "vcf", "pdb", "mmcif"]
     outcome: Literal["accepted", "rejected"]
     draft: InspectionDraft | None = None
     issue: ProcessingNotice | None = None
@@ -97,6 +119,8 @@ class IntakeInspection(Contract):
         if isinstance(self.draft, ResearchDraft):
             expected = self.draft.input_method
         elif isinstance(self.draft, DatasetDraft):
+            expected = self.draft.declared_format
+        elif isinstance(self.draft, StructureDraft):
             expected = self.draft.declared_format
         else:
             expected = self.declared_format
@@ -138,6 +162,18 @@ def _inspect(request: IntakeInspectionRequest) -> InspectionDraft:
             sample_id=request.sample_id,
             reference_assembly=request.reference_assembly,
             reference_content=request.reference_content,
+            limits=request.limits,
+        )
+    if isinstance(request, PdbInspectionRequest):
+        return process_pdb(
+            request.content,
+            filename=request.filename,
+            limits=request.limits,
+        )
+    if isinstance(request, MmcifInspectionRequest):
+        return process_mmcif(
+            request.content,
+            filename=request.filename,
             limits=request.limits,
         )
     raise TypeError("Unsupported inspection request")
