@@ -116,6 +116,22 @@ Versions deliberately omit wall-clock time from their canonical identity. A
 later provenance activity can record event time without making equivalent local
 content nondeterministic.
 
+The `/api/v1/intake` boundary exposes the sequence workflow without returning
+raw sequence content:
+
+- `POST /detect` returns a non-authoritative type suggestion that always requires
+  review.
+- `POST /research-drafts` validates and stores FASTA, pasted sequence, accession,
+  gene, objective or synthetic-demo drafts.
+- `GET /research-drafts/{draft_id}/missing` returns warnings, missing fields and
+  confirmation readiness.
+- `POST /research-drafts/{draft_id}/confirm` binds an explicit approval to the
+  exact draft, artifact, normalized checksum and warning set.
+
+The local store defaults to `apps/api/.casai-workspace` and can be relocated with
+`INTAKE_WORKSPACE_ROOT`. This store is an offline/demo boundary, not a replacement
+for the planned Supabase-backed production persistence layer.
+
 ## Verification and next milestone
 
 Run the offline intake tests from the repository root:
@@ -124,10 +140,10 @@ Run the offline intake tests from the repository root:
 bun scripts/api-python.ts -m pytest -c pyproject.toml tests/test_input_processing.py -q
 ```
 
-The remaining intake milestone adds confirmation routes and links provenance
-actors and activities to stored artifacts. Exact supplied references and bounded
-inspection routes are available, but no database migration, live reference
-resolver or confirmation endpoint is included yet. FASTQ and VCF use the
+The remaining intake work links provenance actors and activities to stored
+artifacts. Exact supplied references, bounded inspection routes and local
+sequence confirmation are available, but no database migration or live reference
+resolver is included yet. FASTQ and VCF use the
 separate bounded dataset adapters and local CLI described in
 [multi-format intake](multi-format-intake.md), not this sequence request contract.
 GenBank, general coordinate/assembly files, tabular metadata and production

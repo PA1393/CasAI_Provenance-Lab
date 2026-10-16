@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     crispresso_command: str = "CRISPResso"
     indelphi_python: str = "python"
     indelphi_model_dir: str = ""
+    intake_workspace_root: Path = _ENV_FILE.parent / ".casai-workspace"
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,

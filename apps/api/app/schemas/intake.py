@@ -10,6 +10,8 @@ from app.modules.information_processor.contracts import (
     MAX_INPUT_BYTES,
     Contract,
     FieldValue,
+    InputDetection,
+    InputMethod,
     MissingField,
     MoleculeType,
     ProcessingNotice,
@@ -39,7 +41,7 @@ class ArtifactSummary(Contract):
 
 class SequenceRecordSummary(Contract):
     record_id: str
-    molecule_type: MoleculeType
+    molecule_type: MoleculeType | None
     sequence_length: int
     checksum: str
 
@@ -49,7 +51,7 @@ class SequenceDraftSummary(Contract):
     schema_version: str
     status: Literal["draft"]
     executable: Literal[False]
-    input_method: Literal["fasta", "pasted_sequence"]
+    input_method: InputMethod
     artifact_checksum: str
     artifact_byte_length: int
     normalized_checksum: str
@@ -125,3 +127,74 @@ class ReferenceInspectionResponse(Contract):
         if self.outcome == "rejected" and (self.issue is None or self.draft is not None):
             raise ValueError("Rejected reference response requires only an issue")
         return self
+
+
+class DetectionBody(Contract):
+    content: str = Field(min_length=1, max_length=MAX_INPUT_BYTES)
+
+
+class DetectionResponse(Contract):
+    outcome: Literal["accepted", "rejected"]
+    detection: InputDetection | None = None
+    issue: ProcessingNotice | None = None
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> DetectionResponse:
+        if self.outcome == "accepted" and (self.detection is None or self.issue is not None):
+            raise ValueError("Accepted detection requires only a detection result")
+        if self.outcome == "rejected" and (self.issue is None or self.detection is not None):
+            raise ValueError("Rejected detection requires only an issue")
+        return self
+
+
+class StoredSequenceDraftResponse(Contract):
+    outcome: Literal["accepted", "rejected"]
+    draft_id: str | None = None
+    draft: SequenceDraftSummary | None = None
+    issue: ProcessingNotice | None = None
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> StoredSequenceDraftResponse:
+        accepted = self.draft_id is not None and self.draft is not None and self.issue is None
+        rejected = self.draft_id is None and self.draft is None and self.issue is not None
+        if (self.outcome == "accepted") != accepted or (self.outcome == "rejected") != rejected:
+            raise ValueError("Stored draft response fields do not match its outcome")
+        return self
+
+
+class MissingFieldsResponse(Contract):
+    draft_id: str
+    ready_for_confirmation: bool
+    warnings: tuple[ProcessingNotice, ...]
+    missing_fields: tuple[MissingField, ...]
+
+
+class ConfirmationBody(Contract):
+    expected_normalized_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    expected_artifact_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    actor_id: str = Field(min_length=1, max_length=200)
+    decision: Literal["approve"]
+    acknowledged_warning_codes: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_review(self) -> ConfirmationBody:
+        if not self.actor_id.strip():
+            raise ValueError("Confirmation actor must be nonempty")
+        if any(not code.strip() for code in self.acknowledged_warning_codes):
+            raise ValueError("Acknowledged warning codes must be nonempty")
+        if tuple(sorted(set(self.acknowledged_warning_codes))) != self.acknowledged_warning_codes:
+            raise ValueError("Acknowledged warning codes must be unique and sorted")
+        return self
+
+
+class ConfirmedResearchSummary(Contract):
+    schema_version: str
+    version_id: str
+    source_draft_id: str
+    status: Literal["confirmed"]
+    executable: Literal[True]
+    normalized_checksum: str
+    original_artifact_checksum: str
+    records: tuple[SequenceRecordSummary, ...]
+    approved_by: str
+    acknowledged_warning_codes: tuple[str, ...]

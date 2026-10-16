@@ -4,10 +4,22 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Response, UploadFile
 from pydantic import ValidationError
 
-from app.modules.information_processor.contracts import MAX_INPUT_BYTES, ProcessingNotice
+from app.core.config import settings
+from app.modules.information_processor.confirmation import (
+    ConfirmationError,
+    ConfirmationRequest,
+    ConfirmedResearchObject,
+    confirm_research_draft,
+)
+from app.modules.information_processor.contracts import (
+    MAX_INPUT_BYTES,
+    IntakeRequest,
+    ProcessingNotice,
+    ResearchDraft,
+)
 from app.modules.information_processor.intake import (
     FastqInspectionRequest,
     IntakeInspection,
@@ -15,21 +27,37 @@ from app.modules.information_processor.intake import (
     VcfInspectionRequest,
     inspect_input,
 )
-from app.modules.information_processor.parser import InputValidationError, encode_input
+from app.modules.information_processor.parser import (
+    InputValidationError,
+    detect_input,
+    encode_input,
+)
+from app.modules.information_processor.processing import process_input
 from app.modules.information_processor.references import (
     ReferenceDraft,
     SuppliedReferenceRequest,
     resolve_supplied_reference,
 )
+from app.modules.information_processor.workspace import (
+    DraftNotFoundError,
+    LocalWorkspace,
+    WorkspaceError,
+)
 from app.schemas.intake import (
     ArtifactSummary,
+    ConfirmationBody,
+    ConfirmedResearchSummary,
     DatasetDraftSummary,
+    DetectionBody,
+    DetectionResponse,
     IntakeInspectionResponse,
+    MissingFieldsResponse,
     ReferenceDraftSummary,
     ReferenceInspectionResponse,
     SequenceDraftSummary,
     SequenceInspectBody,
     SequenceRecordSummary,
+    StoredSequenceDraftResponse,
 )
 
 router = APIRouter(prefix="/intake", tags=["intake"])
@@ -41,6 +69,13 @@ _TOO_LARGE = {
     "too_many_lines",
     "too_many_records",
 }
+_SHA256_PATH = r"^sha256:[0-9a-f]{64}$"
+
+
+def get_intake_workspace() -> LocalWorkspace:
+    """Construct the configured local store; dependency overrides isolate tests."""
+
+    return LocalWorkspace(settings.intake_workspace_root)
 
 
 def _artifact_summary(artifact) -> ArtifactSummary:
@@ -50,6 +85,53 @@ def _artifact_summary(artifact) -> ArtifactSummary:
         compression=artifact.compression,
         checksum=artifact.checksum,
         byte_length=artifact.byte_length,
+    )
+
+
+def _sequence_summary(draft: ResearchDraft) -> SequenceDraftSummary:
+    return SequenceDraftSummary(
+        schema_version=draft.schema_version,
+        status=draft.status,
+        executable=draft.executable,
+        input_method=draft.input_method,
+        artifact_checksum=draft.original_artifact.checksum,
+        artifact_byte_length=draft.original_artifact.byte_length,
+        normalized_checksum=draft.normalized_checksum,
+        records=tuple(
+            SequenceRecordSummary(
+                record_id=record.record_id.value,
+                molecule_type=record.molecule_type.value,
+                sequence_length=record.sequence_length,
+                checksum=record.checksum,
+            )
+            for record in draft.records
+        ),
+        warnings=draft.warnings,
+        missing_fields=draft.missing_fields,
+        ready_for_confirmation=draft.ready_for_confirmation,
+    )
+
+
+def _confirmed_summary(version: ConfirmedResearchObject) -> ConfirmedResearchSummary:
+    return ConfirmedResearchSummary(
+        schema_version=version.schema_version,
+        version_id=version.version_id,
+        source_draft_id=version.source_draft_id,
+        status=version.status,
+        executable=version.executable,
+        normalized_checksum=version.normalized_checksum,
+        original_artifact_checksum=version.original_artifact.checksum,
+        records=tuple(
+            SequenceRecordSummary(
+                record_id=record.record_id.value,
+                molecule_type=record.molecule_type.value,
+                sequence_length=record.sequence_length,
+                checksum=record.checksum,
+            )
+            for record in version.snapshot.records
+        ),
+        approved_by=version.approval.actor_id,
+        acknowledged_warning_codes=version.approval.acknowledged_warning_codes,
     )
 
 
@@ -63,28 +145,8 @@ def _inspection_response(result: IntakeInspection) -> IntakeInspectionResponse:
     draft = result.draft
     if draft is None:
         raise RuntimeError("Accepted inspection unexpectedly omitted its draft")
-    if hasattr(draft, "original_artifact"):
-        summary = SequenceDraftSummary(
-            schema_version=draft.schema_version,
-            status=draft.status,
-            executable=draft.executable,
-            input_method=draft.input_method,
-            artifact_checksum=draft.original_artifact.checksum,
-            artifact_byte_length=draft.original_artifact.byte_length,
-            normalized_checksum=draft.normalized_checksum,
-            records=tuple(
-                SequenceRecordSummary(
-                    record_id=record.record_id.value,
-                    molecule_type=record.molecule_type.value,
-                    sequence_length=record.sequence_length,
-                    checksum=record.checksum,
-                )
-                for record in draft.records
-            ),
-            warnings=draft.warnings,
-            missing_fields=draft.missing_fields,
-            ready_for_confirmation=draft.ready_for_confirmation,
-        )
+    if isinstance(draft, ResearchDraft):
+        summary = _sequence_summary(draft)
     else:
         summary = DatasetDraftSummary(
             schema_version=draft.schema_version,
@@ -149,6 +211,102 @@ async def _read_bounded(upload: UploadFile) -> bytes:
     if len(content) > MAX_INPUT_BYTES:
         raise InputValidationError("input_too_large", "Uploaded file exceeds the byte budget")
     return content
+
+
+@router.post("/detect", response_model=DetectionResponse)
+def detect_sequence(body: DetectionBody, response: Response) -> DetectionResponse:
+    try:
+        detection = detect_input(encode_input(body.content))
+    except InputValidationError as exc:
+        _set_rejection_status(response, exc.issue)
+        return DetectionResponse(outcome="rejected", issue=exc.issue)
+    return DetectionResponse(outcome="accepted", detection=detection)
+
+
+@router.post("/research-drafts", response_model=StoredSequenceDraftResponse, status_code=201)
+def store_research_draft(
+    body: IntakeRequest,
+    response: Response,
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> StoredSequenceDraftResponse:
+    try:
+        draft = process_input(body)
+        manifest = workspace.save_draft(draft)
+    except InputValidationError as exc:
+        _set_rejection_status(response, exc.issue)
+        return StoredSequenceDraftResponse(outcome="rejected", issue=exc.issue)
+    except WorkspaceError:
+        response.status_code = 409
+        return StoredSequenceDraftResponse(
+            outcome="rejected",
+            issue=ProcessingNotice(
+                code="workspace_conflict",
+                message="The local intake workspace could not store this immutable draft",
+            ),
+        )
+    return StoredSequenceDraftResponse(
+        outcome="accepted",
+        draft_id=manifest.draft_id,
+        draft=_sequence_summary(draft),
+    )
+
+
+@router.get("/research-drafts/{draft_id}/missing", response_model=MissingFieldsResponse)
+def inspect_missing_fields(
+    draft_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> MissingFieldsResponse:
+    try:
+        draft = workspace.load_draft(draft_id)
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Research draft not found") from exc
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=409, detail="Research draft failed integrity checks"
+        ) from exc
+    if not isinstance(draft, ResearchDraft):
+        raise HTTPException(
+            status_code=400, detail="Stored object is not a sequence research draft"
+        )
+    return MissingFieldsResponse(
+        draft_id=draft_id,
+        ready_for_confirmation=draft.ready_for_confirmation,
+        warnings=draft.warnings,
+        missing_fields=draft.missing_fields,
+    )
+
+
+@router.post(
+    "/research-drafts/{draft_id}/confirm",
+    response_model=ConfirmedResearchSummary,
+    status_code=201,
+)
+def confirm_stored_research_draft(
+    body: ConfirmationBody,
+    draft_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> ConfirmedResearchSummary:
+    try:
+        version = confirm_research_draft(
+            workspace,
+            ConfirmationRequest(
+                source_draft_id=draft_id,
+                expected_normalized_checksum=body.expected_normalized_checksum,
+                expected_artifact_checksum=body.expected_artifact_checksum,
+                actor_id=body.actor_id,
+                decision=body.decision,
+                acknowledged_warning_codes=body.acknowledged_warning_codes,
+            ),
+        )
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Research draft not found") from exc
+    except ConfirmationError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=409, detail="Research draft failed integrity checks"
+        ) from exc
+    return _confirmed_summary(version)
 
 
 @router.post("/sequences/inspect", response_model=IntakeInspectionResponse)
