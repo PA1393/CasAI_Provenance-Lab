@@ -171,6 +171,7 @@ def map_guides(request: GuideMappingRequest) -> GuideMap:
         "schema_version": "casai.guide-map.v1",
         "status": "draft",
         "executable": False,
+        "source_version_id": request.source_version_id,
         "source_record_id": request.source_record_id,
         "target_sequence_checksum": request.sequence_checksum,
         "target_length": len(sequence),

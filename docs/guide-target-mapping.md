@@ -4,10 +4,11 @@ The `guide_mapping` module provides an offline, deterministic first layer for
 reviewable CBE and ABE guide discovery. It does not call an LLM, external genome
 service or scientific engine.
 
-`GuideMappingRequest` requires an uppercase DNA/IUPAC target, source record ID,
-editor, PAM, guide length, 1-based-inclusive edit window and optional exact
-desired substitutions. Desired reference bases must match the supplied target.
-Duplicate or out-of-range desired positions are rejected.
+`GuideMappingRequest` requires an uppercase DNA/IUPAC target, immutable confirmed
+research-object version ID, source record ID, editor, PAM, guide length,
+1-based-inclusive edit window and optional exact desired substitutions. Desired
+reference bases must match the supplied target. Duplicate or out-of-range desired
+positions are rejected.
 
 `map_guides(...)` enumerates both target orientations. A candidate is emitted
 only when:
@@ -41,6 +42,11 @@ Mapping and ranking do not claim guide optimality, genome-wide specificity,
 biological effect, allele selectivity, delivery feasibility, safety or
 experimental validation. External off-target adapters, approval/versioning and
 API exposure belong to later reviewable increments.
+
+`LocalWorkspace` stores maps and rankings as immutable JSON objects. Before a map
+is written or reopened, the workspace verifies that its target checksum, length
+and record ID match one exact DNA record in the referenced confirmed version.
+Rankings must reference a stored map and exactly the same candidate identities.
 
 Run the focused tests from `apps/api`:
 

@@ -21,6 +21,7 @@ _MARKER = "$artifact"
 StoredDraft = ResearchDraft | DatasetDraft | ReferenceDraft
 
 if TYPE_CHECKING:
+    from app.modules.guide_mapping.contracts import GuideMap, GuideRanking
     from app.modules.information_processor.confirmation import ConfirmedResearchObject
 
 
@@ -133,11 +134,15 @@ class LocalWorkspace:
         self.artifacts = self.artifact_root / "sha256"
         self.drafts = self.root / "drafts"
         self.versions = self.root / "versions"
+        self.guide_maps = self.root / "guide-maps"
+        self.guide_rankings = self.root / "guide-rankings"
         self._ensure_directory(self.root)
         self._ensure_directory(self.artifact_root)
         self._ensure_directory(self.artifacts)
         self._ensure_directory(self.drafts)
         self._ensure_directory(self.versions)
+        self._ensure_directory(self.guide_maps)
+        self._ensure_directory(self.guide_rankings)
 
     def _ensure_directory(self, path: Path) -> None:
         if path.exists() and path.is_symlink():
@@ -170,6 +175,14 @@ class LocalWorkspace:
     def version_path(self, version_id: str) -> Path:
         self._ensure_directory(self.versions)
         return self.versions / f"{self._hex(version_id)}.json"
+
+    def guide_map_path(self, map_id: str) -> Path:
+        self._ensure_directory(self.guide_maps)
+        return self.guide_maps / f"{self._hex(map_id)}.json"
+
+    def guide_ranking_path(self, ranking_id: str) -> Path:
+        self._ensure_directory(self.guide_rankings)
+        return self.guide_rankings / f"{self._hex(ranking_id)}.json"
 
     @staticmethod
     def _atomic_create(path: Path, content: bytes) -> None:
@@ -305,3 +318,91 @@ class LocalWorkspace:
         except ConfirmationError as exc:
             raise WorkspaceIntegrityError(str(exc)) from exc
         return version
+
+    def _validate_guide_map_source(self, guide_map: GuideMap) -> None:
+        version = self.load_confirmed_version(guide_map.source_version_id)
+        matches = tuple(
+            record
+            for record in version.snapshot.records
+            if record.record_id.value == guide_map.source_record_id
+        )
+        if len(matches) != 1:
+            raise WorkspaceIntegrityError(
+                "Guide map source record is absent or ambiguous in its confirmed version"
+            )
+        record = matches[0]
+        if record.molecule_type.value != "DNA":
+            raise WorkspaceIntegrityError("Guide mapping requires a confirmed DNA record")
+        sequence = record.sequence.value
+        if (
+            len(sequence) != guide_map.target_length
+            or checksum(sequence.encode("ascii")) != guide_map.target_sequence_checksum
+        ):
+            raise WorkspaceIntegrityError("Guide map target does not match its confirmed record")
+
+    def save_guide_map(self, guide_map: GuideMap) -> None:
+        from app.modules.guide_mapping.contracts import GuideMap
+
+        try:
+            guide_map = GuideMap.model_validate(guide_map.model_dump(round_trip=True))
+        except ValueError as exc:
+            raise WorkspaceIntegrityError("Guide map failed validation") from exc
+        self._validate_guide_map_source(guide_map)
+        content = guide_map.model_dump_json(round_trip=True).encode("utf-8")
+        self._atomic_create(self.guide_map_path(guide_map.map_id), content)
+
+    def load_guide_map(self, map_id: str) -> GuideMap:
+        from app.modules.guide_mapping.contracts import GuideMap
+
+        path = self.guide_map_path(map_id)
+        if path.is_symlink():
+            raise WorkspaceIntegrityError("Guide map cannot be a symbolic link")
+        if not path.is_file():
+            raise DraftNotFoundError("Guide map does not exist in this workspace")
+        try:
+            guide_map = GuideMap.model_validate_json(path.read_bytes())
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise WorkspaceIntegrityError("Guide map failed validation") from exc
+        if guide_map.map_id != map_id:
+            raise WorkspaceIntegrityError("Guide map path does not match its content identity")
+        self._validate_guide_map_source(guide_map)
+        return guide_map
+
+    def _validate_guide_ranking_source(self, ranking: GuideRanking) -> None:
+        guide_map = self.load_guide_map(ranking.guide_map_id)
+        expected_candidates = tuple(
+            candidate.candidate_id for candidate in guide_map.candidates
+        )
+        if (
+            ranking.target_sequence_checksum != guide_map.target_sequence_checksum
+            or ranking.mapped_candidate_ids != expected_candidates
+        ):
+            raise WorkspaceIntegrityError("Guide ranking does not match its stored guide map")
+
+    def save_guide_ranking(self, ranking: GuideRanking) -> None:
+        from app.modules.guide_mapping.contracts import GuideRanking
+
+        try:
+            ranking = GuideRanking.model_validate(ranking.model_dump(round_trip=True))
+        except ValueError as exc:
+            raise WorkspaceIntegrityError("Guide ranking failed validation") from exc
+        self._validate_guide_ranking_source(ranking)
+        content = ranking.model_dump_json(round_trip=True).encode("utf-8")
+        self._atomic_create(self.guide_ranking_path(ranking.ranking_id), content)
+
+    def load_guide_ranking(self, ranking_id: str) -> GuideRanking:
+        from app.modules.guide_mapping.contracts import GuideRanking
+
+        path = self.guide_ranking_path(ranking_id)
+        if path.is_symlink():
+            raise WorkspaceIntegrityError("Guide ranking cannot be a symbolic link")
+        if not path.is_file():
+            raise DraftNotFoundError("Guide ranking does not exist in this workspace")
+        try:
+            ranking = GuideRanking.model_validate_json(path.read_bytes())
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise WorkspaceIntegrityError("Guide ranking failed validation") from exc
+        if ranking.ranking_id != ranking_id:
+            raise WorkspaceIntegrityError("Guide ranking path does not match its content identity")
+        self._validate_guide_ranking_source(ranking)
+        return ranking

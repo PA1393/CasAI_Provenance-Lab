@@ -8,6 +8,7 @@ from app.modules.guide_mapping.contracts import DesiredEdit, GuideRanking
 
 GUIDE_ONE = "AAACAAAAAAAAAAAAAAAA"
 GUIDE_TWO = "AAACACAAAAAAAAAAAAAA"
+SOURCE_VERSION = "sha256:" + "1" * 64
 
 
 def _target(guide):
@@ -22,6 +23,7 @@ def test_ranking_prioritizes_desired_coverage_before_other_heuristics():
     sequence = _target(GUIDE_ONE) + "AAAA" + _target(GUIDE_TWO)
     request = GuideMappingRequest(
         sequence=sequence,
+        source_version_id=SOURCE_VERSION,
         source_record_id="rank-target",
         editor="CBE",
         desired_edits=(DesiredEdit(position=8, reference="C", alternate="T"),),
@@ -42,6 +44,7 @@ def test_ranking_keeps_components_separate_and_has_no_aggregate_score():
     guide_map = map_guides(
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="transparent-target",
             editor="CBE",
             desired_edits=(DesiredEdit(position=8, reference="C", alternate="T"),),
@@ -68,6 +71,7 @@ def test_ranking_is_deterministic_and_assesses_every_candidate_once():
     guide_map = map_guides(
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="deterministic-target",
             editor="CBE",
         )
@@ -92,6 +96,7 @@ def test_local_specificity_penalizes_a_second_exact_guide_match():
     unique_map = map_guides(
         GuideMappingRequest(
             sequence=unique_sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="unique-target",
             editor="CBE",
         )
@@ -99,6 +104,7 @@ def test_local_specificity_penalizes_a_second_exact_guide_match():
     repeated_map = map_guides(
         GuideMappingRequest(
             sequence=repeated_sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="repeated-target",
             editor="CBE",
         )
@@ -130,6 +136,7 @@ def test_empty_map_produces_valid_empty_ranking():
     guide_map = map_guides(
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="empty-target",
             editor="CBE",
         )
@@ -144,6 +151,7 @@ def test_ranking_rejects_a_different_target_even_when_length_matches():
     guide_map = map_guides(
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="identity-target",
             editor="CBE",
         )
@@ -163,6 +171,7 @@ def test_ranking_contract_rejects_identity_and_candidate_coverage_forgery():
         map_guides(
             GuideMappingRequest(
                 sequence=sequence,
+                source_version_id=SOURCE_VERSION,
                 source_record_id="forgery-target",
                 editor="CBE",
             )

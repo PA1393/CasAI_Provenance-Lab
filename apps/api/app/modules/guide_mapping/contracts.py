@@ -28,6 +28,7 @@ class DesiredEdit(Contract):
 
 class GuideMappingRequest(Contract):
     sequence: str = Field(min_length=1)
+    source_version_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     source_record_id: str = Field(min_length=1)
     editor: EditorType
     pam: str = Field(default="NGG", min_length=1, max_length=12)
@@ -151,6 +152,7 @@ class GuideMap(Contract):
     map_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     status: Literal["draft"] = "draft"
     executable: Literal[False] = False
+    source_version_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     source_record_id: str
     target_sequence_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     target_length: int = Field(gt=0, strict=True)

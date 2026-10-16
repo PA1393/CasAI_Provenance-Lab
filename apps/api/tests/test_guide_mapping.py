@@ -14,6 +14,7 @@ from app.modules.simulation.nucleotides import revcomp
 
 GUIDE_C = "AAACACAAAAAAAAAAAAAA"
 GUIDE_A = "GGGAGGGGGGGGGGGGGGGG"
+SOURCE_VERSION = "sha256:" + "1" * 64
 
 
 def _target(guide, pam="AGG"):
@@ -23,6 +24,7 @@ def _target(guide, pam="AGG"):
 def test_cbe_maps_forward_coordinates_desired_edit_and_bystander():
     request = GuideMappingRequest(
         sequence=_target(GUIDE_C),
+        source_version_id=SOURCE_VERSION,
         source_record_id="target-1",
         editor="CBE",
         desired_edits=(DesiredEdit(position=8, reference="C", alternate="T"),),
@@ -49,6 +51,7 @@ def test_cbe_maps_reverse_strand_to_forward_coordinates_and_changes():
     sequence = revcomp(_target(GUIDE_C))
     request = GuideMappingRequest(
         sequence=sequence,
+        source_version_id=SOURCE_VERSION,
         source_record_id="target-reverse",
         editor="CBE",
         desired_edits=(DesiredEdit(position=24, reference="G", alternate="A"),),
@@ -68,6 +71,7 @@ def test_abe_maps_expected_change_and_window():
     result = map_guides(
         GuideMappingRequest(
             sequence=_target(GUIDE_A, pam="TGG"),
+            source_version_id=SOURCE_VERSION,
             source_record_id="abe-target",
             editor="ABE",
             desired_edits=(DesiredEdit(position=8, reference="A", alternate="G"),),
@@ -82,6 +86,7 @@ def test_incompatible_desired_edit_is_explicit_and_not_claimed_as_covered():
     result = map_guides(
         GuideMappingRequest(
             sequence=_target(GUIDE_C),
+            source_version_id=SOURCE_VERSION,
             source_record_id="target-1",
             editor="CBE",
             desired_edits=(DesiredEdit(position=8, reference="C", alternate="G"),),
@@ -96,6 +101,7 @@ def test_desired_edit_outside_all_windows_is_reported():
     result = map_guides(
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="boundary-target",
             editor="CBE",
             desired_edits=(DesiredEdit(position=1, reference="C", alternate="T"),),
@@ -109,6 +115,7 @@ def test_no_pam_or_no_editable_base_returns_non_executable_map_with_issue():
     no_pam = map_guides(
         GuideMappingRequest(
             sequence="A" * 60,
+            source_version_id=SOURCE_VERSION,
             source_record_id="no-pam",
             editor="CBE",
         )
@@ -116,6 +123,7 @@ def test_no_pam_or_no_editable_base_returns_non_executable_map_with_issue():
     no_editable = map_guides(
         GuideMappingRequest(
             sequence="GGGCCC" * 10,
+            source_version_id=SOURCE_VERSION,
             source_record_id="no-abe",
             editor="ABE",
         )
@@ -132,6 +140,7 @@ def test_ambiguous_bases_are_retained_but_not_used_in_candidate_guide():
     result = map_guides(
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="ambiguous-target",
             editor="CBE",
         )
@@ -145,6 +154,7 @@ def test_mapping_enumerates_multiple_sites_in_deterministic_strand_order():
     sequence = _target(GUIDE_C) + "AAAA" + _target(GUIDE_C)
     request = GuideMappingRequest(
         sequence=sequence,
+        source_version_id=SOURCE_VERSION,
         source_record_id="multi-target",
         editor="CBE",
     )
@@ -178,6 +188,7 @@ def test_mapping_enumerates_multiple_sites_in_deterministic_strand_order():
 def test_request_rejects_invalid_sequence_pam_and_window(changes, message):
     values = {
         "sequence": _target(GUIDE_C),
+        "source_version_id": SOURCE_VERSION,
         "source_record_id": "target",
         "editor": "CBE",
     }
@@ -191,6 +202,7 @@ def test_request_rejects_reference_mismatch_duplicate_or_out_of_bounds_desired_e
     with pytest.raises(ValidationError, match="reference"):
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="target",
             editor="CBE",
             desired_edits=(DesiredEdit(position=1, reference="A", alternate="G"),),
@@ -199,6 +211,7 @@ def test_request_rejects_reference_mismatch_duplicate_or_out_of_bounds_desired_e
     with pytest.raises(ValidationError, match="unique"):
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="target",
             editor="CBE",
             desired_edits=(duplicate, duplicate),
@@ -206,6 +219,7 @@ def test_request_rejects_reference_mismatch_duplicate_or_out_of_bounds_desired_e
     with pytest.raises(ValidationError, match="exceeds"):
         GuideMappingRequest(
             sequence=sequence,
+            source_version_id=SOURCE_VERSION,
             source_record_id="target",
             editor="CBE",
             desired_edits=(
@@ -218,6 +232,7 @@ def test_map_and_candidate_identity_reject_forgery():
     result = map_guides(
         GuideMappingRequest(
             sequence=_target(GUIDE_C),
+            source_version_id=SOURCE_VERSION,
             source_record_id="target",
             editor="CBE",
         )
