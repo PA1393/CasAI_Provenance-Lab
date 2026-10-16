@@ -8,7 +8,7 @@ import re
 import tempfile
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, model_validator
 
@@ -19,6 +19,9 @@ from app.modules.information_processor.references import ReferenceDraft
 _SHA256 = re.compile(r"sha256:[0-9a-f]{64}", flags=re.ASCII)
 _MARKER = "$artifact"
 StoredDraft = ResearchDraft | DatasetDraft | ReferenceDraft
+
+if TYPE_CHECKING:
+    from app.modules.information_processor.confirmation import ConfirmedResearchObject
 
 
 class WorkspaceError(RuntimeError):
@@ -129,10 +132,12 @@ class LocalWorkspace:
         self.artifact_root = self.root / "artifacts"
         self.artifacts = self.artifact_root / "sha256"
         self.drafts = self.root / "drafts"
+        self.versions = self.root / "versions"
         self._ensure_directory(self.root)
         self._ensure_directory(self.artifact_root)
         self._ensure_directory(self.artifacts)
         self._ensure_directory(self.drafts)
+        self._ensure_directory(self.versions)
 
     def _ensure_directory(self, path: Path) -> None:
         if path.exists() and path.is_symlink():
@@ -161,6 +166,10 @@ class LocalWorkspace:
     def manifest_path(self, draft_id: str) -> Path:
         self._ensure_directory(self.drafts)
         return self.drafts / f"{self._hex(draft_id)}.json"
+
+    def version_path(self, version_id: str) -> Path:
+        self._ensure_directory(self.versions)
+        return self.versions / f"{self._hex(version_id)}.json"
 
     @staticmethod
     def _atomic_create(path: Path, content: bytes) -> None:
@@ -253,3 +262,46 @@ class LocalWorkspace:
         if actual_normalized != manifest.normalized_checksum:
             raise WorkspaceIntegrityError("Stored draft normalized identity does not match")
         return draft
+
+    def save_confirmed_version(self, version: ConfirmedResearchObject) -> None:
+        from app.modules.information_processor.confirmation import (
+            ConfirmationError,
+            validate_confirmed_source,
+        )
+
+        draft = self.load_draft(version.source_draft_id)
+        if not isinstance(draft, ResearchDraft):
+            raise WorkspaceIntegrityError("Confirmed version does not reference a sequence draft")
+        try:
+            validate_confirmed_source(version, draft)
+        except ConfirmationError as exc:
+            raise WorkspaceIntegrityError(str(exc)) from exc
+        content = version.model_dump_json(round_trip=True).encode("utf-8")
+        self._atomic_create(self.version_path(version.version_id), content)
+
+    def load_confirmed_version(self, version_id: str) -> ConfirmedResearchObject:
+        from app.modules.information_processor.confirmation import (
+            ConfirmationError,
+            ConfirmedResearchObject,
+            validate_confirmed_source,
+        )
+
+        path = self.version_path(version_id)
+        if path.is_symlink():
+            raise WorkspaceIntegrityError("Confirmed version cannot be a symbolic link")
+        if not path.is_file():
+            raise DraftNotFoundError("Confirmed version does not exist in this workspace")
+        try:
+            version = ConfirmedResearchObject.model_validate_json(path.read_bytes())
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise WorkspaceIntegrityError("Confirmed version failed validation") from exc
+        if version.version_id != version_id:
+            raise WorkspaceIntegrityError("Version path does not match its content identity")
+        draft = self.load_draft(version.source_draft_id)
+        if not isinstance(draft, ResearchDraft):
+            raise WorkspaceIntegrityError("Confirmed version does not reference a sequence draft")
+        try:
+            validate_confirmed_source(version, draft)
+        except ConfirmationError as exc:
+            raise WorkspaceIntegrityError(str(exc)) from exc
+        return version
