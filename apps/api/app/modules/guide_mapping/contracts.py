@@ -191,3 +191,74 @@ class GuideMap(Contract):
         if self.map_id != canonical_identity(identity):
             raise ValueError("Guide map identity must match canonical mapping content")
         return self
+
+
+ScoreName = Literal[
+    "desired_coverage",
+    "bystander_avoidance",
+    "window_centrality",
+    "guide_composition",
+    "local_specificity",
+]
+
+
+class ScoreComponent(Contract):
+    name: ScoreName
+    value: float = Field(ge=0, le=1)
+    explanation: str = Field(min_length=1)
+    limitation: str = Field(min_length=1)
+    claim_type: Literal["heuristic"] = "heuristic"
+
+
+class CandidateAssessment(Contract):
+    candidate_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    rank: int = Field(gt=0, strict=True)
+    components: tuple[ScoreComponent, ...]
+    ranking_basis: tuple[ScoreName, ...] = (
+        "desired_coverage",
+        "bystander_avoidance",
+        "window_centrality",
+        "local_specificity",
+        "guide_composition",
+    )
+
+    @model_validator(mode="after")
+    def validate_components(self) -> CandidateAssessment:
+        names = tuple(component.name for component in self.components)
+        if len(set(names)) != len(names) or set(names) != set(ScoreName.__args__):
+            raise ValueError("Assessment must contain every score component exactly once")
+        if names != self.ranking_basis:
+            raise ValueError("Score components must follow the declared ranking basis")
+        return self
+
+
+class GuideRanking(Contract):
+    schema_version: Literal["casai.guide-ranking.v1"] = "casai.guide-ranking.v1"
+    ranking_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    guide_map_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    target_sequence_checksum: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    method_version: Literal["casai.guide-ranking.heuristic.v1"] = (
+        "casai.guide-ranking.heuristic.v1"
+    )
+    mapped_candidate_ids: tuple[str, ...]
+    assessments: tuple[CandidateAssessment, ...]
+    aggregate_score: Literal[None] = None
+    claim_type: Literal["heuristic"] = "heuristic"
+
+    @model_validator(mode="after")
+    def validate_ranking(self) -> GuideRanking:
+        assessed = tuple(assessment.candidate_id for assessment in self.assessments)
+        if len(set(self.mapped_candidate_ids)) != len(self.mapped_candidate_ids):
+            raise ValueError("Mapped candidate identities must be unique")
+        if set(assessed) != set(self.mapped_candidate_ids) or len(assessed) != len(
+            self.mapped_candidate_ids
+        ):
+            raise ValueError("Ranking must assess every mapped candidate exactly once")
+        if tuple(assessment.rank for assessment in self.assessments) != tuple(
+            range(1, len(self.assessments) + 1)
+        ):
+            raise ValueError("Assessment ranks must be contiguous and ordered")
+        identity = self.model_dump(round_trip=True, exclude={"ranking_id"})
+        if self.ranking_id != canonical_identity(identity):
+            raise ValueError("Guide ranking identity must match canonical scoring content")
+        return self

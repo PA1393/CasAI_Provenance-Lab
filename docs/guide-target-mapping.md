@@ -28,10 +28,19 @@ issues.
 
 Guide candidates and complete maps are immutable, content-addressed contracts.
 They remain `status=draft`, `executable=false` and `claim_type=heuristic`.
-Mapping does not claim guide optimality, genome-wide specificity, biological
-effect, allele selectivity, delivery feasibility, safety or experimental
-validation. Ranking, off-target adapters, approval/versioning and API exposure
-belong to later reviewable increments.
+
+`rank_guides(...)` adds a separate content-addressed heuristic ranking. It keeps
+desired-edit coverage, bystander avoidance, edit-window centrality, guide
+composition and within-target specificity as individually labeled components.
+Candidates are ordered lexicographically by those declared components; no opaque
+aggregate score is emitted. The local specificity component is PAM-agnostic and
+is explicitly not a genome-wide off-target search. The guide-composition
+component is not a trained efficacy model or experimental measurement.
+
+Mapping and ranking do not claim guide optimality, genome-wide specificity,
+biological effect, allele selectivity, delivery feasibility, safety or
+experimental validation. External off-target adapters, approval/versioning and
+API exposure belong to later reviewable increments.
 
 Run the focused tests from `apps/api`:
 
