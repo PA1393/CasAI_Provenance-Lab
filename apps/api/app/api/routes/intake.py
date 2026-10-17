@@ -7,7 +7,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Response, UploadFile
 from pydantic import ValidationError
 
-from app.core.config import settings
+from app.api.dependencies import get_intake_workspace
 from app.modules.information_processor.confirmation import (
     ConfirmationError,
     ConfirmationRequest,
@@ -70,12 +70,6 @@ _TOO_LARGE = {
     "too_many_records",
 }
 _SHA256_PATH = r"^sha256:[0-9a-f]{64}$"
-
-
-def get_intake_workspace() -> LocalWorkspace:
-    """Construct the configured local store; dependency overrides isolate tests."""
-
-    return LocalWorkspace(settings.intake_workspace_root)
 
 
 def _artifact_summary(artifact) -> ArtifactSummary:

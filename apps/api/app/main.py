@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.guide_mapping import router as guide_mapping_router
 from app.api.routes.health import router as health_router
 from app.api.routes.intake import router as intake_router
 from app.api.routes.provenance import router as provenance_router
@@ -22,6 +23,7 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(intake_router, prefix=settings.api_prefix)
+app.include_router(guide_mapping_router, prefix=settings.api_prefix)
 app.include_router(runs_router, prefix=settings.api_prefix)
 app.include_router(research_objects_router, prefix=settings.api_prefix)
 app.include_router(provenance_router, prefix=settings.api_prefix)

@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.routes.intake import get_intake_workspace
+from app.api.dependencies import get_intake_workspace
 from app.main import app
 from app.modules.information_processor.workspace import LocalWorkspace
 

@@ -48,6 +48,12 @@ is written or reopened, the workspace verifies that its target checksum, length
 and record ID match one exact DNA record in the referenced confirmed version.
 Rankings must reference a stored map and exactly the same candidate identities.
 
+`POST /api/v1/guide-maps` accepts only a confirmed research-object version and
+record identifier plus mapping parameters. The backend retrieves the exact DNA
+record, maps and ranks candidates, stores both immutable objects, and returns a
+bounded summary without the full target sequence. Missing versions, absent
+records, non-DNA molecules and desired-reference mismatches are rejected.
+
 Run the focused tests from `apps/api`:
 
 ```bash
