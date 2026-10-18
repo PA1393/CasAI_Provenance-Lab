@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import math
+import time
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -96,7 +99,60 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, secured_send)
 
 
-async def _error(send: Send, status: int, code: str, message: str) -> None:
+class RateLimitMiddleware:
+    """Bound request bursts per direct client in one API worker."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        requests_per_minute: int,
+        *,
+        max_clients: int = 10_000,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.app = app
+        self.limit = requests_per_minute
+        self.max_clients = max_clients
+        self.clock = clock
+        self._buckets: OrderedDict[str, tuple[float, int]] = OrderedDict()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or self.limit == 0:
+            await self.app(scope, receive, send)
+            return
+
+        client = scope.get("client")
+        key = str(client[0]) if client else "unknown"
+        now = self.clock()
+        started, count = self._buckets.get(key, (now, 0))
+        if now - started >= 60:
+            started, count = now, 0
+        if count >= self.limit:
+            retry_after = max(1, math.ceil(60 - (now - started)))
+            await _error(
+                send,
+                429,
+                "rate_limit_exceeded",
+                "Request rate limit exceeded",
+                headers=((b"retry-after", str(retry_after).encode("ascii")),),
+            )
+            return
+
+        self._buckets[key] = (started, count + 1)
+        self._buckets.move_to_end(key)
+        while len(self._buckets) > self.max_clients:
+            self._buckets.popitem(last=False)
+        await self.app(scope, receive, send)
+
+
+async def _error(
+    send: Send,
+    status: int,
+    code: str,
+    message: str,
+    *,
+    headers: tuple[tuple[bytes, bytes], ...] = (),
+) -> None:
     body = json.dumps({"error": {"code": code, "message": message}}).encode("utf-8")
     await send(
         {
@@ -105,6 +161,7 @@ async def _error(send: Send, status: int, code: str, message: str) -> None:
             "headers": [
                 (b"content-type", b"application/json"),
                 (b"content-length", str(len(body)).encode("ascii")),
+                *headers,
             ],
         }
     )

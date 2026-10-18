@@ -12,7 +12,11 @@ from app.api.routes.runs import router as runs_router
 from app.api.routes.scene_manifests import router as scene_manifests_router
 from app.api.routes.simulation_plans import router as simulation_plans_router
 from app.core.config import settings
-from app.core.security import RequestSizeLimitMiddleware, SecurityHeadersMiddleware
+from app.core.security import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 
 app = FastAPI(title=settings.app_name)
 
@@ -20,10 +24,15 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.cors_origin],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type"],
 )
 app.add_middleware(RequestSizeLimitMiddleware, max_bytes=settings.max_request_bytes)
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=settings.rate_limit_requests_per_minute,
+    max_clients=settings.rate_limit_max_clients,
+)
 app.add_middleware(
     SecurityHeadersMiddleware,
     production=settings.environment == "production",

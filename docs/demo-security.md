@@ -10,6 +10,12 @@ bounded structured `413` response before route processing. API responses include
 no-sniff, frame denial, restrictive permissions and content-security policies,
 no-referrer behavior and `no-store`; production also enables HSTS.
 
+Production configuration also requires a nonzero per-minute request limit. The
+initial limiter uses the direct client address, bounded in-memory client buckets
+and a standard `Retry-After` response. It is a single-worker demonstration
+boundary, not a substitute for a distributed gateway limit in a scaled deployment.
+Development keeps the limiter disabled by default so local checks are deterministic.
+
 These controls improve the public synthetic-data demonstration. They do not make
 the application suitable for private customer research. Authentication, MFA,
 tenant isolation, row-level security, retention/deletion policy, malware scanning
