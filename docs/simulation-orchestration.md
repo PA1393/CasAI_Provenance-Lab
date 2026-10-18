@@ -15,6 +15,12 @@ hashes the canonical scientific content, including approval state and stage orde
 Plans and stages are labeled explanatory; executing a plan will produce separately
 labeled computed results rather than upgrading the plan into experimental evidence.
 
-This first B6 increment defines planning and approval gates only. Engine
-availability, attempts, retries, cancellation, persistence and API orchestration
-remain separate follow-up increments.
+Exact engine dispatch now requires the engine identifier, version and operation
+declared by each stage. There is no fallback or silent substitution. A required
+stage failure stops later work and fails the execution. An optional stage failure
+allows independent work to continue and produces a partial result; dependent
+stages are skipped or failed according to their own requirement policy.
+
+These B6 increments define planning, approval gates and in-process orchestration.
+Attempts, retries, cancellation, persistence and API orchestration remain separate
+follow-up increments.
