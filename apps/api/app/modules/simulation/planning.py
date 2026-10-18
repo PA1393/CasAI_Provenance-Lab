@@ -65,8 +65,8 @@ class SimulationStage(Contract):
     engine_version: str = Field(min_length=1, max_length=128)
     operation: str = Field(pattern=r"^[a-z][a-z0-9_.-]{0,63}$")
     requirement: StageRequirement
-    depends_on: tuple[str, ...] = ()
-    settings: tuple[StageSetting, ...] = ()
+    depends_on: tuple[str, ...] = Field(default=(), max_length=32)
+    settings: tuple[StageSetting, ...] = Field(default=(), max_length=64)
     claim_type: Literal["explanatory"] = "explanatory"
 
     @model_validator(mode="after")
@@ -86,9 +86,9 @@ class SimulationPlan(Contract):
     plan_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     status: PlanStatus
     executable: bool = Field(strict=True)
-    inputs: tuple[PlanInput, ...]
-    stages: tuple[SimulationStage, ...]
-    limitations: tuple[str, ...] = ()
+    inputs: tuple[PlanInput, ...] = Field(max_length=16)
+    stages: tuple[SimulationStage, ...] = Field(max_length=32)
+    limitations: tuple[str, ...] = Field(default=(), max_length=64)
     claim_type: Literal["explanatory"] = "explanatory"
 
     @model_validator(mode="after")
@@ -104,6 +104,8 @@ class SimulationPlan(Contract):
 
         if not self.stages:
             raise ValueError("A simulation plan requires at least one stage")
+        if any(not item.strip() or len(item) > 500 for item in self.limitations):
+            raise ValueError("Plan limitations must contain 1 to 500 characters")
         seen: set[str] = set()
         for stage in self.stages:
             if stage.stage_id in seen:

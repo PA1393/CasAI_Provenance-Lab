@@ -28,5 +28,8 @@ overwrite the prior execution, artifacts or failure explanation. Cancellation is
 limited to the active attempt and requires a recorded reason.
 
 These B6 increments define planning, approval gates, in-process orchestration and
-attempt lifecycle rules. Persistence and API orchestration remain separate
-follow-up increments.
+attempt lifecycle rules. `POST /api/v1/simulation-plans` now creates an immutable
+draft from an exact confirmed research version, guide map and optional ranking;
+`GET /api/v1/simulation-plans/{plan_id}` reloads it with integrity checks. The API
+cannot self-approve a plan or mark it executable. Approval remains a separate
+review responsibility, and executable-session persistence remains a follow-up.

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.modules.guide_mapping.contracts import GuideMap, GuideRanking
     from app.modules.information_processor.confirmation import ConfirmedResearchObject
     from app.modules.scene_manifest import SceneManifest
+    from app.modules.simulation import SimulationPlan
 
 
 class WorkspaceError(RuntimeError):
@@ -138,6 +139,7 @@ class LocalWorkspace:
         self.guide_maps = self.root / "guide-maps"
         self.guide_rankings = self.root / "guide-rankings"
         self.scenes = self.root / "scene-manifests"
+        self.simulation_plans = self.root / "simulation-plans"
         self._ensure_directory(self.root)
         self._ensure_directory(self.artifact_root)
         self._ensure_directory(self.artifacts)
@@ -146,6 +148,7 @@ class LocalWorkspace:
         self._ensure_directory(self.guide_maps)
         self._ensure_directory(self.guide_rankings)
         self._ensure_directory(self.scenes)
+        self._ensure_directory(self.simulation_plans)
 
     def _ensure_directory(self, path: Path) -> None:
         if path.exists() and path.is_symlink():
@@ -190,6 +193,10 @@ class LocalWorkspace:
     def scene_manifest_path(self, scene_id: str) -> Path:
         self._ensure_directory(self.scenes)
         return self.scenes / f"{self._hex(scene_id)}.json"
+
+    def simulation_plan_path(self, plan_id: str) -> Path:
+        self._ensure_directory(self.simulation_plans)
+        return self.simulation_plans / f"{self._hex(plan_id)}.json"
 
     @staticmethod
     def _atomic_create(path: Path, content: bytes) -> None:
@@ -452,3 +459,57 @@ class LocalWorkspace:
             raise WorkspaceIntegrityError("Scene path does not match its content identity")
         self._validate_scene_assets(scene)
         return scene
+
+    def _validate_simulation_plan_inputs(self, plan: SimulationPlan) -> None:
+        research_ids = {
+            item.artifact_id
+            for item in plan.inputs
+            if item.kind == "confirmed_research_version"
+        }
+        guide_ids = {
+            item.artifact_id for item in plan.inputs if item.kind == "guide_map"
+        }
+        for version_id in research_ids:
+            self.load_confirmed_version(version_id)
+        for map_id in guide_ids:
+            guide_map = self.load_guide_map(map_id)
+            if guide_map.source_version_id not in research_ids:
+                raise WorkspaceIntegrityError(
+                    "Simulation guide map is not bound to a plan research version"
+                )
+        for item in plan.inputs:
+            if item.kind != "guide_ranking":
+                continue
+            ranking = self.load_guide_ranking(item.artifact_id)
+            if ranking.guide_map_id not in guide_ids:
+                raise WorkspaceIntegrityError(
+                    "Simulation guide ranking is not bound to a plan guide map"
+                )
+
+    def save_simulation_plan(self, plan: SimulationPlan) -> None:
+        from app.modules.simulation import SimulationPlan
+
+        try:
+            plan = SimulationPlan.model_validate(plan.model_dump(round_trip=True))
+        except ValueError as exc:
+            raise WorkspaceIntegrityError("Simulation plan failed validation") from exc
+        self._validate_simulation_plan_inputs(plan)
+        content = plan.model_dump_json(round_trip=True).encode("utf-8")
+        self._atomic_create(self.simulation_plan_path(plan.plan_id), content)
+
+    def load_simulation_plan(self, plan_id: str) -> SimulationPlan:
+        from app.modules.simulation import SimulationPlan
+
+        path = self.simulation_plan_path(plan_id)
+        if path.is_symlink():
+            raise WorkspaceIntegrityError("Simulation plan cannot be a symbolic link")
+        if not path.is_file():
+            raise DraftNotFoundError("Simulation plan does not exist in this workspace")
+        try:
+            plan = SimulationPlan.model_validate_json(path.read_bytes())
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise WorkspaceIntegrityError("Simulation plan failed validation") from exc
+        if plan.plan_id != plan_id:
+            raise WorkspaceIntegrityError("Simulation plan path does not match its identity")
+        self._validate_simulation_plan_inputs(plan)
+        return plan
