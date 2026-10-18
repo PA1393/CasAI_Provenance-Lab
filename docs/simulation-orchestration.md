@@ -21,6 +21,12 @@ stage failure stops later work and fails the execution. An optional stage failur
 allows independent work to continue and produces a partial result; dependent
 stages are skipped or failed according to their own requirement policy.
 
-These B6 increments define planning, approval gates and in-process orchestration.
-Attempts, retries, cancellation, persistence and API orchestration remain separate
+Execution sessions retain immutable attempt lineage. Attempts move explicitly from
+pending to running and then to a terminal state. Retrying a partial, failed or
+cancelled attempt appends a new attempt that points to its predecessor; it does not
+overwrite the prior execution, artifacts or failure explanation. Cancellation is
+limited to the active attempt and requires a recorded reason.
+
+These B6 increments define planning, approval gates, in-process orchestration and
+attempt lifecycle rules. Persistence and API orchestration remain separate
 follow-up increments.

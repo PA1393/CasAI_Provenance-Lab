@@ -1,5 +1,14 @@
 """Simulation planning and deterministic sequence-analysis primitives."""
 
+from app.modules.simulation.attempts import (
+    ExecutionAttempt,
+    ExecutionSession,
+    cancel_attempt,
+    create_execution_session,
+    finish_attempt,
+    retry_attempt,
+    start_attempt,
+)
 from app.modules.simulation.orchestration import (
     EngineExecutionError,
     EngineRegistry,
@@ -17,6 +26,13 @@ from app.modules.simulation.planning import (
 )
 
 __all__ = [
+    "ExecutionAttempt",
+    "ExecutionSession",
+    "cancel_attempt",
+    "create_execution_session",
+    "finish_attempt",
+    "retry_attempt",
+    "start_attempt",
     "PlanInput",
     "SimulationPlan",
     "SimulationStage",
