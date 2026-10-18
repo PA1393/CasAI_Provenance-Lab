@@ -14,3 +14,8 @@ separately labeled experimentally reported, predicted or explanatory.
 Initial scenes are labeled explanatory or predicted. Explanatory scenes cannot
 claim trajectory artifacts. This backend increment is renderer-independent and
 does not implement the Person 2-owned Mol* frontend.
+
+`POST /api/v1/scene-manifests` validates, content-addresses and immutably stores a
+bounded manifest. `GET /api/v1/scene-manifests/{scene_id}` reloads it with integrity
+checks. Workspace-backed molecular assets must already exist under their exact
+checksum; client-provided paths and URLs are never resolved.

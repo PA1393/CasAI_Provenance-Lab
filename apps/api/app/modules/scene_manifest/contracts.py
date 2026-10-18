@@ -216,13 +216,13 @@ class SceneManifest(Contract):
     schema_version: Literal["casai.scene-manifest.v1"] = "casai.scene-manifest.v1"
     scene_id: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     scene_status: Literal["explanatory", "predicted"]
-    assets: tuple[MolecularAsset, ...]
-    selections: tuple[MolecularSelection, ...]
-    annotations: tuple[Annotation, ...] = ()
-    measurements: tuple[Measurement, ...] = ()
-    transforms: tuple[CoordinateTransform, ...] = ()
-    cameras: tuple[CameraState, ...] = ()
-    visibility_states: tuple[VisibilityState, ...] = ()
+    assets: tuple[MolecularAsset, ...] = Field(max_length=32)
+    selections: tuple[MolecularSelection, ...] = Field(max_length=500)
+    annotations: tuple[Annotation, ...] = Field(default=(), max_length=500)
+    measurements: tuple[Measurement, ...] = Field(default=(), max_length=500)
+    transforms: tuple[CoordinateTransform, ...] = Field(default=(), max_length=32)
+    cameras: tuple[CameraState, ...] = Field(default=(), max_length=64)
+    visibility_states: tuple[VisibilityState, ...] = Field(default=(), max_length=128)
     trajectory_artifact_id: str | None = Field(
         default=None,
         pattern=r"^sha256:[0-9a-f]{64}$",

@@ -23,6 +23,7 @@ StoredDraft = ResearchDraft | DatasetDraft | ReferenceDraft
 if TYPE_CHECKING:
     from app.modules.guide_mapping.contracts import GuideMap, GuideRanking
     from app.modules.information_processor.confirmation import ConfirmedResearchObject
+    from app.modules.scene_manifest import SceneManifest
 
 
 class WorkspaceError(RuntimeError):
@@ -136,6 +137,7 @@ class LocalWorkspace:
         self.versions = self.root / "versions"
         self.guide_maps = self.root / "guide-maps"
         self.guide_rankings = self.root / "guide-rankings"
+        self.scenes = self.root / "scene-manifests"
         self._ensure_directory(self.root)
         self._ensure_directory(self.artifact_root)
         self._ensure_directory(self.artifacts)
@@ -143,6 +145,7 @@ class LocalWorkspace:
         self._ensure_directory(self.versions)
         self._ensure_directory(self.guide_maps)
         self._ensure_directory(self.guide_rankings)
+        self._ensure_directory(self.scenes)
 
     def _ensure_directory(self, path: Path) -> None:
         if path.exists() and path.is_symlink():
@@ -183,6 +186,10 @@ class LocalWorkspace:
     def guide_ranking_path(self, ranking_id: str) -> Path:
         self._ensure_directory(self.guide_rankings)
         return self.guide_rankings / f"{self._hex(ranking_id)}.json"
+
+    def scene_manifest_path(self, scene_id: str) -> Path:
+        self._ensure_directory(self.scenes)
+        return self.scenes / f"{self._hex(scene_id)}.json"
 
     @staticmethod
     def _atomic_create(path: Path, content: bytes) -> None:
@@ -406,3 +413,42 @@ class LocalWorkspace:
             raise WorkspaceIntegrityError("Guide ranking path does not match its content identity")
         self._validate_guide_ranking_source(ranking)
         return ranking
+
+    def _validate_scene_assets(self, scene: SceneManifest) -> None:
+        for asset in scene.assets:
+            if asset.source_type != "workspace_artifact":
+                continue
+            path = self.artifact_path(asset.checksum)
+            if path.is_symlink() or not path.is_file():
+                raise WorkspaceIntegrityError("Scene workspace asset is missing")
+            content = path.read_bytes()
+            if checksum(content) != asset.checksum:
+                raise WorkspaceIntegrityError("Scene workspace asset failed integrity checks")
+
+    def save_scene_manifest(self, scene: SceneManifest) -> None:
+        from app.modules.scene_manifest import SceneManifest
+
+        try:
+            scene = SceneManifest.model_validate(scene.model_dump(round_trip=True))
+        except ValueError as exc:
+            raise WorkspaceIntegrityError("Scene manifest failed validation") from exc
+        self._validate_scene_assets(scene)
+        content = scene.model_dump_json(round_trip=True).encode("utf-8")
+        self._atomic_create(self.scene_manifest_path(scene.scene_id), content)
+
+    def load_scene_manifest(self, scene_id: str) -> SceneManifest:
+        from app.modules.scene_manifest import SceneManifest
+
+        path = self.scene_manifest_path(scene_id)
+        if path.is_symlink():
+            raise WorkspaceIntegrityError("Scene manifest cannot be a symbolic link")
+        if not path.is_file():
+            raise DraftNotFoundError("Scene manifest does not exist in this workspace")
+        try:
+            scene = SceneManifest.model_validate_json(path.read_bytes())
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise WorkspaceIntegrityError("Scene manifest failed validation") from exc
+        if scene.scene_id != scene_id:
+            raise WorkspaceIntegrityError("Scene path does not match its content identity")
+        self._validate_scene_assets(scene)
+        return scene
