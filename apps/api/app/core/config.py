@@ -1,5 +1,9 @@
-from pathlib import Path
+from __future__ import annotations
 
+from pathlib import Path
+from typing import Literal
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Resolve the .env at apps/api/.env regardless of the process working directory
@@ -9,8 +13,10 @@ _ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 class Settings(BaseSettings):
     app_name: str = "CasAI Provenance Lab API"
+    environment: Literal["development", "test", "production"] = "development"
     api_prefix: str = "/api/v1"
     cors_origin: str = "http://localhost:3000"
+    max_request_bytes: int = 12_000_000
     supabase_url: str = ""
     supabase_service_key: str = ""
     openai_api_key: str = ""
@@ -33,6 +39,29 @@ class Settings(BaseSettings):
     indelphi_python: str = "python"
     indelphi_model_dir: str = ""
     intake_workspace_root: Path = _ENV_FILE.parent / ".casai-workspace"
+
+    @field_validator("cors_origin")
+    @classmethod
+    def validate_cors_origin(cls, value: str) -> str:
+        origin = value.rstrip("/")
+        if origin == "*" or not origin.startswith(("http://", "https://")):
+            raise ValueError("CORS_ORIGIN must be one explicit HTTP(S) origin")
+        if "," in origin or " " in origin:
+            raise ValueError("CORS_ORIGIN must contain exactly one origin")
+        return origin
+
+    @field_validator("max_request_bytes")
+    @classmethod
+    def validate_request_limit(cls, value: int) -> int:
+        if not 1_000_000 <= value <= 100_000_000:
+            raise ValueError("MAX_REQUEST_BYTES must be between 1 MB and 100 MB")
+        return value
+
+    @model_validator(mode="after")
+    def validate_production_transport(self) -> Settings:
+        if self.environment == "production" and not self.cors_origin.startswith("https://"):
+            raise ValueError("Production CORS_ORIGIN must use HTTPS")
+        return self
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,

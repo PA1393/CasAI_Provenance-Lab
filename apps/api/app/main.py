@@ -11,6 +11,7 @@ from app.api.routes.results import router as results_router
 from app.api.routes.runs import router as runs_router
 from app.api.routes.scene_manifests import router as scene_manifests_router
 from app.core.config import settings
+from app.core.security import RequestSizeLimitMiddleware, SecurityHeadersMiddleware
 
 app = FastAPI(title=settings.app_name)
 
@@ -20,6 +21,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(RequestSizeLimitMiddleware, max_bytes=settings.max_request_bytes)
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    production=settings.environment == "production",
 )
 
 app.include_router(health_router)
