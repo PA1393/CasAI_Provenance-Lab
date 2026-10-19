@@ -20,3 +20,8 @@ These controls improve the public synthetic-data demonstration. They do not make
 the application suitable for private customer research. Authentication, MFA,
 tenant isolation, row-level security, retention/deletion policy, malware scanning
 and independent security review remain part of the private-data milestone.
+
+Repository CI also performs CodeQL analysis, Python dependency and Bandit checks,
+and changed-history secret scanning. Operational response, backup restoration and
+credential-rotation guidance is maintained in `docs/security-operations.md` and
+the root `SECURITY.md`.
