@@ -110,12 +110,14 @@ export function Molecule3D({ phase, pdbId }: Props) {
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
 
-  const options = pdbId
-    ? [{ id: pdbId, label: `Research-object structure (${pdbId})` }, ...CRISPR_STRUCTURES]
+  const safePdbId = pdbId && /^[A-Za-z0-9]{4}$/.test(pdbId) ? pdbId.toUpperCase() : null;
+  const options = safePdbId
+    ? [{ id: safePdbId, label: `User-supplied PDB ID (${safePdbId})` }, ...CRISPR_STRUCTURES.filter((item) => item.id !== safePdbId)]
     : CRISPR_STRUCTURES;
   // Default to the CRISPR complex so the enzyme is always present.
   const [structure, setStructure] = useState(CRISPR_STRUCTURES[0].id);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [retryCount, setRetryCount] = useState(0);
 
   // Plugin lifecycle: created once per mount, disposed once on unmount.
   // React StrictMode double-invokes this effect in dev, and the two
@@ -217,7 +219,7 @@ export function Molecule3D({ phase, pdbId }: Props) {
     return () => {
       active = false;
     };
-  }, [structure]);
+  }, [structure, retryCount]);
 
   // Re-style on phase changes (no reload).
   useEffect(() => {
@@ -236,6 +238,7 @@ export function Molecule3D({ phase, pdbId }: Props) {
 
       <div className="absolute left-3 top-3 z-10">
         <select
+          aria-label="Public example structure"
           value={structure}
           onChange={(e) => setStructure(e.target.value)}
           className="rounded border border-border bg-bg/80 px-2 py-1 font-mono text-[10px] text-text backdrop-blur focus:border-accent focus:outline-none"
@@ -258,7 +261,7 @@ export function Molecule3D({ phase, pdbId }: Props) {
           <span>Could not load the 3D structure.</span>
           <span className="text-muted">Check your internet connection (structures stream from RCSB).</span>
           <button
-            onClick={() => setStructure((s) => s)}
+            onClick={() => setRetryCount((count) => count + 1)}
             className="mt-1 rounded border border-border px-3 py-1 text-text hover:border-accent"
           >
             Retry

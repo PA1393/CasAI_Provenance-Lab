@@ -41,8 +41,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      suppressHydrationWarning
     >
       <body>
+        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.dataset.theme=localStorage.getItem("casai-theme")==="dark"?"dark":"light"}catch{}` }} />
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-bg-card focus:p-3">Skip to content</a>
         <SiteShell>{children}</SiteShell>
       </body>
     </html>

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { createResearchObject } from "@/lib/api/client";
+import { parseTargetRegion } from "@/lib/uploads/target-region";
 import {
   inspectFastaUpload,
   MAX_UPLOAD_BYTES,
@@ -27,6 +28,7 @@ function readFileText(file: File): Promise<string> {
 export function InputBundleForm() {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
+  const inspectionId = useRef(0);
   const [step, setStep] = useState<IntakeStep>("details");
   const [name, setName] = useState("");
   const [pdbId, setPdbId] = useState("");
@@ -40,11 +42,13 @@ export function InputBundleForm() {
   const [error, setError] = useState<string | null>(null);
 
   async function inspectFile(selected: File | null) {
+    const attempt = ++inspectionId.current;
     setStep("details");
     setFile(selected);
     setFastaText("");
     setReview(null);
     setError(null);
+    setReading(false);
     if (!selected) return;
 
     if (selected.size > MAX_UPLOAD_BYTES) {
@@ -55,19 +59,19 @@ export function InputBundleForm() {
     setReading(true);
     try {
       const text = await readFileText(selected);
+      if (attempt !== inspectionId.current) return;
       setFastaText(text);
       setReview(inspectFastaUpload(selected.name, selected.size, text));
     } catch {
+      if (attempt !== inspectionId.current) return;
       setError("The selected file could not be read. Choose it again or use another file.");
     } finally {
-      setReading(false);
+      if (attempt === inspectionId.current) setReading(false);
     }
   }
 
   function targetRegion(): number[] | undefined {
-    const start = Number.parseInt(targetStart, 10);
-    const end = Number.parseInt(targetEnd, 10);
-    return targetStart && targetEnd && start >= 0 && end > start ? [start, end] : undefined;
+    return parseTargetRegion(targetStart, targetEnd, review?.sequenceLength ?? 0);
   }
 
   function openReview(event: React.FormEvent) {
@@ -81,8 +85,10 @@ export function InputBundleForm() {
       setError("Enter a four-character PDB ID, such as 1ABC.");
       return;
     }
-    if ((targetStart || targetEnd) && !targetRegion()) {
-      setError("Target coordinates require a start of 0 or greater and an end after the start.");
+    try {
+      targetRegion();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Check the target coordinates.");
       return;
     }
     setStep("review");
@@ -118,11 +124,10 @@ export function InputBundleForm() {
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-accent">Ready to create</p>
             <h2 id="review-title" className="mt-2 font-serif-display text-3xl">
-              Review the immutable record
+              Review research input
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-text-secondary">
-              Check the source and coordinates now. After creation, changes become a new
-              version instead of replacing this record.
+              Check the source and coordinates before saving the research input.
             </p>
           </div>
           <div className="border-t border-border px-6 py-5 md:border-l md:border-t-0 md:px-8">
@@ -199,17 +204,21 @@ export function InputBundleForm() {
             id="sequence-file"
             type="file"
             accept=".fasta,.fa,.fna"
-            required
             onChange={(event) => void inspectFile(event.target.files?.[0] ?? null)}
             className="sr-only"
           />
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            className="mt-5 w-full rounded-lg border border-dashed border-border-strong bg-bg-sunken px-5 py-8 text-left hover:border-accent"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void inspectFile(event.dataTransfer.files[0] ?? null);
+            }}
+            className="mt-5 w-full rounded-lg border border-dashed border-border-strong bg-bg-sunken px-5 py-12 text-center hover:border-accent"
           >
             <span className="block font-medium">
-              {file ? file.name : "Choose a sequence file"}
+              {file ? file.name : "Drop a FASTA file here or click to choose"}
             </span>
             <span className="mt-2 block text-sm text-muted">
               {reading
@@ -242,14 +251,14 @@ export function InputBundleForm() {
         </div>
       </div>
 
-      <div className="grid gap-6 p-6 md:grid-cols-2 md:p-8">
+      {review?.ready && <div className="grid gap-6 p-6 md:grid-cols-2 md:p-8">
         <Field label="Research object name" htmlFor="object-name">
           <input
             id="object-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
-            placeholder="BRCA2 base-edit trial"
+            placeholder="Analysis 01"
             className={inputClass}
           />
         </Field>
@@ -269,13 +278,13 @@ export function InputBundleForm() {
             Target window <span className="font-normal text-muted">(optional)</span>
           </legend>
           <p className="mt-1 text-sm text-text-secondary">
-            Use zero-based coordinates. Leave both fields empty to review the full sequence.
+            Use 1-based inclusive coordinates. Leave both fields empty to review the full sequence.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <input
               aria-label="Target start"
               inputMode="numeric"
-              min="0"
+              min="1"
               type="number"
               value={targetStart}
               onChange={(event) => setTargetStart(event.target.value)}
@@ -294,7 +303,7 @@ export function InputBundleForm() {
             />
           </div>
         </fieldset>
-      </div>
+      </div>}
 
       {review?.issues.map((issue) => (
         <ErrorMessage
@@ -306,7 +315,7 @@ export function InputBundleForm() {
       {error && <ErrorMessage message={error} />}
       <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-5 md:px-8">
         <p className="text-xs leading-5 text-muted">
-          Nothing is uploaded until you confirm the review.
+          Nothing is uploaded until you save the reviewed input.
         </p>
         <button
           type="submit"
@@ -358,7 +367,7 @@ function ErrorMessage({ message, warning = false }: { message: string; warning?:
   return (
     <p
       role={warning ? "status" : "alert"}
-      className={`border-t border-border px-6 py-3 text-sm md:px-8 ${warning ? "bg-bg-sunken text-accent-amber" : "bg-red-50 text-accent-red"}`}
+      className={`border-t border-border px-6 py-3 text-sm md:px-8 ${warning ? "bg-bg-sunken text-accent-amber" : "bg-accent-red/10 text-accent-red"}`}
     >
       {message}
     </p>

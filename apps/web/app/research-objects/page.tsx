@@ -3,7 +3,6 @@ import { getResearchObjects } from "@/lib/api/client";
 import { ResearchObjectCard } from "@/components/research-objects/research-object-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
 
 export default async function ResearchObjectsPage() {
   let items: Awaited<ReturnType<typeof getResearchObjects>> = [];
@@ -16,33 +15,32 @@ export default async function ResearchObjectsPage() {
   }
 
   return (
-    <section className="px-8 pt-12 pb-12 max-w-7xl mx-auto">
-      <Eyebrow>──── LAYER 2 / RESEARCH OBJECTS</Eyebrow>
-      <div className="mt-4 flex items-end justify-between">
+    <section className="mx-auto max-w-[92rem] px-4 pb-14 pt-7 sm:px-6 lg:px-8 lg:pt-9">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-serif-display text-4xl md:text-5xl">
-            Research <span className="italic text-accent">Objects</span>
+          <p className="text-sm font-semibold text-accent">Research inputs</p>
+          <h1 className="mt-1 font-serif-display text-3xl text-text sm:text-4xl">
+            Your validated sequence records
           </h1>
-          <p className="mt-3 text-muted max-w-2xl">
-            Canonical, immutable bundles. Each one represents a validated gene-editing input,
-            hashed and ready for runs.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
+            Open an existing record or add a FASTA sequence to review its source and analysis history.
           </p>
         </div>
         <Link
           href="/research-objects/new"
-          className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded bg-text text-bg hover:bg-accent transition-colors"
+          className="inline-flex w-fit items-center justify-center rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-bg transition-colors hover:bg-accent-bright"
         >
-          + New Research Object
+          Add research input
         </Link>
       </div>
 
-      <div className="mt-10">
+      <div className="mt-7">
         {fetchError ? (
           <ErrorState message="Could not load research objects. Is the backend running?" />
         ) : items.length === 0 ? (
           <EmptyState
-            message="No research objects yet."
-            actionLabel="Create one"
+            message="No research inputs yet. Add a FASTA sequence to begin."
+            actionLabel="Add research input"
             actionHref="/research-objects/new"
           />
         ) : (

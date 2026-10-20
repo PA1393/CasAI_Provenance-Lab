@@ -1,5 +1,6 @@
 import type { ProvenanceEvent } from "@/lib/api/client";
 import { STAGES } from "@/lib/stages";
+import { stageStatus } from "@/lib/run-progress";
 
 type Props = {
   provenance: ProvenanceEvent[];
@@ -16,7 +17,9 @@ export function RunPipeline({ provenance, currentStage }: Props) {
       {STAGES.map((stage, i) => {
         const events = eventsByStage[stage.key] ?? [];
         const isActive = stage.key === currentStage;
-        const isDone = events.length > 0;
+        const state = stageStatus(stage.key, events, currentStage);
+        const isDone = state === "completed";
+        const failed = state === "failed";
 
         return (
           <li
@@ -40,7 +43,7 @@ export function RunPipeline({ provenance, currentStage }: Props) {
                         : "border border-border text-muted"
                   }`}
                 >
-                  {isDone ? "✓" : i + 1}
+                  {failed ? "!" : isDone ? "✓" : i + 1}
                 </span>
                 <span
                   className={`font-mono text-xs tracking-[0.2em] uppercase font-semibold ${
@@ -50,9 +53,9 @@ export function RunPipeline({ provenance, currentStage }: Props) {
                   {stage.label}
                 </span>
               </div>
-              {isActive && (
+              {isActive && !failed && !isDone && (
                 <span className="animate-pulse-soft font-mono text-[10px] tracking-[0.2em] uppercase text-accent">
-                  RUNNING
+                  CURRENT STAGE
                 </span>
               )}
             </div>

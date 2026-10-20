@@ -41,7 +41,7 @@ const PHASES = [
   {
     key: "edit",
     label: "EDIT",
-    desc: "The base is converted (C→T) — the edit is locked into the sequence.",
+    desc: "Compare the computed sequence with the supplied input when a result is available.",
   },
 ];
 
@@ -56,6 +56,7 @@ export function RunSimulation({
 }: Props) {
   const [phase, setPhase] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [loadStructure, setLoadStructure] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -81,7 +82,8 @@ export function RunSimulation({
     // bench reads far better than tinting the whole product dark. The
     // `instrument` class swaps the palette for this subtree (see globals.css);
     // nothing inside needs to know which context it renders into.
-    <div className="instrument flex flex-col gap-5 rounded-xl border border-border bg-bg p-5 shadow-instrument">
+    <div className="flex flex-col gap-5 rounded-xl border border-border bg-bg-card p-5">
+      <p className="rounded-lg bg-accent-soft px-4 py-3 text-sm text-text-secondary">Explanatory scene. Animation phases illustrate a mechanism; they do not show a computed molecular trajectory or validated enzyme pathway.</p>
       {/* phase timeline */}
       <div className="flex items-center gap-2">
         {PHASES.map((p, i) => (
@@ -150,7 +152,12 @@ export function RunSimulation({
             <span className="text-accent">drag to rotate</span>
           </figcaption>
           <div className="h-[300px] p-2">
-            <Molecule3D phase={phase} pdbId={pdbId} />
+            {loadStructure ? <Molecule3D phase={phase} pdbId={pdbId} /> : (
+              <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
+                <p className="max-w-sm text-sm text-text-secondary">Load a public example structure from RCSB PDB. It illustrates the mechanism and is not a structure mapped to this run.</p>
+                <button type="button" onClick={() => setLoadStructure(true)} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">Load public 3D example</button>
+              </div>
+            )}
           </div>
         </figure>
       </div>

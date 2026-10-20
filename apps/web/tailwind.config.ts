@@ -59,8 +59,8 @@ const config: Config = {
         DEFAULT: "0.5rem",
         md: "0.625rem",
         lg: "0.875rem",
-        xl: "1.125rem",
-        "2xl": "1.5rem",
+        xl: "0.875rem",
+        "2xl": "0.875rem",
       },
       boxShadow: {
         // Warm-tinted rather than neutral black — shadows over a bone background
