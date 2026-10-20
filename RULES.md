@@ -9,9 +9,11 @@ Provenance Lab is a research software platform for CRISPR/base-editing workflows
 It helps researchers create, track, compare, and understand computational runs before lab validation.
 
 ## Current Phase
-We are restarting from scratch.
-Focus on clean architecture and a lightweight scaffold.
+We are extending the existing concept demo incrementally.
+Preserve working flows and complete small, verified integration milestones.
 Do not overbuild.
+Current coverage and remaining delivery scope are recorded in
+`docs/remaining-delivery-plan.md`.
 
 ## Architecture
 - Turborepo monorepo
@@ -36,8 +38,9 @@ Do not overbuild.
 ## Explicitly Excluded For Now
 - No Docker
 - No auth
-- No Supabase integration yet
-- No database integration yet
+- No additional database platform; preserve the existing Supabase integration
+- Local immutable workspace storage and Supabase are distinct boundaries until
+  an explicit persistence adapter connects them
 - No Prefect
 - No microservices
 - No over-engineering
@@ -52,6 +55,8 @@ Do not overbuild.
 - Keep UI minimal and clean
 - Do not add unnecessary UI libraries
 - Focus on clear file organization and maintainability
+- Reuse the shared navigation, layout and light/dark theme tokens on every screen
+- Label heuristics and explanatory scenes accurately; never fabricate measurements
 
 ## Early Product Domains
 These should be reflected in structure, even if not fully implemented:
