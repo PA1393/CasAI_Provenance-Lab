@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { ProvenanceEvent, Result } from "@/lib/api/client";
+import type { ProvenanceEvent, ResearchObject, Result, Run } from "@/lib/api/client";
+import { RunSummary } from "./run-summary";
+import { heuristicScore } from "@/lib/result-summary";
 import { RunPipeline } from "@/components/runs/run-pipeline";
 import { RunSimulation } from "@/components/runs/simulation/run-simulation";
 import { extractEditGeometry } from "@/components/runs/simulation/sequence-track";
@@ -26,6 +28,10 @@ type Props = {
   guideRna?: string | null;
   editedSequence?: string | null;
   sequence?: string | null;
+  run?: Run;
+  researchObject?: ResearchObject | null;
+  resultsUnavailable?: boolean;
+  provenanceUnavailable?: boolean;
 };
 
 type Tab = "simulation" | "provenance" | "results" | "sources";
@@ -47,10 +53,18 @@ export function RunTabs({
   guideRna,
   editedSequence,
   sequence,
+  run,
+  researchObject,
+  resultsUnavailable,
+  provenanceUnavailable,
 }: Props) {
   const [active, setActive] = useState<Tab>("results");
   const ragSources = extractRagSources(provenance);
   const editGeometry = extractEditGeometry(provenance);
+  function selectTab(tab: Tab) {
+    setActive(tab);
+    requestAnimationFrame(() => document.getElementById(`tab-${tab}`)?.focus());
+  }
 
   return (
     <div>
@@ -94,9 +108,9 @@ export function RunTabs({
           />
         )}
         {active === "provenance" && (
-          <ProvenanceTab events={provenance} currentStage={currentStage} />
+          provenanceUnavailable ? <p role="alert" className="text-sm text-accent-amber">Provenance could not be loaded. Refresh to try again.</p> : <ProvenanceTab events={provenance} currentStage={currentStage} />
         )}
-        {active === "results" && <ResultsTab results={results} />}
+        {active === "results" && <RunSummary results={results} run={run} researchObject={researchObject} unavailable={resultsUnavailable} onProvenance={() => selectTab("provenance")} onInteraction={() => selectTab("simulation")}><ResultsTab results={results} /></RunSummary>}
         {active === "sources" && <RagSources sources={ragSources} />}
       </div>
     </div>
@@ -145,7 +159,7 @@ function ResultsTab({ results }: { results: Result[] }) {
                     On-target heuristic score
                   </p>
                   <p className="mt-1 font-serif-display italic text-2xl text-accent">
-                    {(result.on_target_score * 100).toFixed(0)} <span className="text-sm text-muted">/ 100</span>
+                    {heuristicScore(result.on_target_score)}
                   </p>
                 </div>
               )}
@@ -155,7 +169,7 @@ function ResultsTab({ results }: { results: Result[] }) {
                     Off-target heuristic score
                   </p>
                   <p className="mt-1 font-serif-display italic text-2xl text-text">
-                    {(result.off_target_score * 100).toFixed(0)} <span className="text-sm text-muted">/ 100</span>
+                    {heuristicScore(result.off_target_score)}
                   </p>
                 </div>
               )}

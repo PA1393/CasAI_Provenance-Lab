@@ -27,9 +27,11 @@ This records an expanded delivery scope, not a claim that all milestones are don
 - `apps/web`: legacy FASTA upload/review, research-object lists, run creation,
   provenance/results and a Mol* public-example viewer. This PR adds a shared
   workbench, consistent navigation, light/dark tokens and a persistent theme switch.
-- `apps/desktop`: Tauri shell and three-platform unsigned packaging workflow.
-  Production `frontendDist` still points to localhost and CSP disables scripts;
-  installers are packaging previews, not standalone working product releases.
+- `apps/desktop`: bundled React/Tauri client, scoped native API transport,
+  backend compatibility gate and three-platform packaging workflow. The Mac
+  app builds and launches locally. Full latest-backend rehearsal, Windows/Linux
+  interactive launch verification and public-release signing remain incomplete;
+  see `desktop-demo.md` for precise evidence and deployment blockers.
 
 ## PR review findings addressed in this increment
 

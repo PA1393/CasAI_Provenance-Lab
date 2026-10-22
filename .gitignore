@@ -14,6 +14,8 @@ coverage
 .env.production.local
 .venv
 .casai-workspace/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
 .pytest_cache
 .ruff_cache
 pytest-cache-files-*
