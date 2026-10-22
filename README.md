@@ -55,6 +55,7 @@ bun run check:api
 
 - `apps/web` - Next.js App Router frontend
 - `apps/api` - FastAPI backend
+- `apps/desktop` - bundled Tauri desktop client for the hosted demo API
 - `packages/config` - shared TypeScript/tooling config
 - `packages/env` - shared frontend env helpers
 - `docs` - architecture and setup notes
@@ -99,4 +100,13 @@ See [the combined delivery plan and audit](docs/remaining-delivery-plan.md) for
 verified module coverage, remaining work now assigned to Kavin, integration
 dependencies and acceptance checks. The roadmap includes unfinished enzyme
 mapping, review approvals, complete exports/rights and the desktop product;
-existing backend contracts and packaging previews do not imply those are complete.
+existing backend contracts do not imply those are complete.
+
+## Desktop demo integration
+
+The desktop client now builds a bundled interface rather than loading a localhost
+web server. It reuses the web screens and connects to the approved hosted API
+through a scoped native transport. See [desktop build and rehearsal](docs/desktop-demo.md)
+for commands, the synthetic fixture, platform packaging and remaining readiness
+gates. The Mac bundle is locally buildable; a complete latest-backend rehearsal,
+Windows/Linux launch tests and public-release signing are separate requirements.

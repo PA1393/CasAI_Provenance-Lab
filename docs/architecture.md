@@ -24,7 +24,10 @@ These are distinct storage and identity boundaries; connecting them requires an
 explicit persistence adapter and migration, not a client-side type cast.
 
 The web interface shares one layout and CSS theme-token system across pages.
-Desktop currently wraps a development URL; production packaging is unfinished.
+Desktop embeds a static React client reusing the web view functions, with hash
+routing and a fixed-host, route-scoped native HTTPS bridge. No Next development
+server is required by a built installer. Full live-backend rehearsal, clean-machine
+platform tests and public-release signing remain gates; see `desktop-demo.md`.
 See [the combined delivery plan](remaining-delivery-plan.md) for the verified
 gaps and integration order, including the work transferred from contributor two.
 

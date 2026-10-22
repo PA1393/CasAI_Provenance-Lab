@@ -10,3 +10,9 @@ export function getPublicEnv() {
   });
 }
 
+// The desktop build supplies a restricted native transport at this same boundary.
+// Web/server rendering continues to use the standard fetch implementation.
+export function fetchApi(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, init);
+}
+

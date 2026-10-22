@@ -1,4 +1,4 @@
-import { getPublicEnv } from "@casai/env";
+import { fetchApi, getPublicEnv } from "@casai/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ function apiUrl(path: string): string {
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const signal = (init?.method ?? "GET") === "GET" ? AbortSignal.timeout(15_000) : undefined;
-  const response = await fetch(apiUrl(path), { cache: "no-store", signal, ...init });
+  const response = await fetchApi(apiUrl(path), { cache: "no-store", signal, ...init });
   if (!response.ok) {
     throw new Error(`API error ${response.status}: ${path}`);
   }

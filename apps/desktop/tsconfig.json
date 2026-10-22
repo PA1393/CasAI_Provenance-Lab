@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["../web/*"],
+      "@casai/env": ["./src/connection.ts"],
+      "next/link": ["./src/compat/link.tsx"],
+      "next/navigation": ["./src/compat/navigation.ts"],
+      "next/dynamic": ["./src/compat/dynamic.tsx"]
+    }
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["dist", "node_modules", "src-tauri"]
+}
