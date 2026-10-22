@@ -13,6 +13,10 @@ from app.modules.simulation.nucleotides import IUPAC, pam_matches
 EditorType = Literal["CBE", "ABE"]
 Strand = Literal["+", "-"]
 
+# Bound the synchronous, PAM-agnostic local-specificity scan and response size.
+MAX_MAPPING_TARGET_BASES = 5_000
+MAX_GUIDE_CANDIDATES = 64
+
 
 class DesiredEdit(Contract):
     position: int = Field(gt=0, strict=True)
@@ -161,7 +165,7 @@ class GuideMap(Contract):
     guide_length: int = Field(gt=0, strict=True)
     edit_window: tuple[int, int]
     desired_edits: tuple[DesiredEdit, ...]
-    candidates: tuple[GuideCandidate, ...]
+    candidates: tuple[GuideCandidate, ...] = Field(max_length=MAX_GUIDE_CANDIDATES)
     issues: tuple[MappingIssue, ...] = ()
     claim_type: Literal["heuristic"] = "heuristic"
 

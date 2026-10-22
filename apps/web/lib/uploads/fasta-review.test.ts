@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import { inspectFastaUpload, MAX_UPLOAD_BYTES } from "./fasta-review";
+import { canReviewUpload, inspectFastaUpload, MAX_UPLOAD_BYTES } from "./fasta-review";
+
+test("review cannot advance without a file or while file validation is incomplete", () => {
+  const file = { name: "target.fa" };
+  const ready = inspectFastaUpload(file.name, 13, ">target\nACGT\n");
+  const empty = inspectFastaUpload(file.name, 0, "");
+  assert.equal(canReviewUpload(null, null, false), false);
+  assert.equal(canReviewUpload(null, ready, false), false);
+  assert.equal(canReviewUpload(file, null, false), false);
+  assert.equal(canReviewUpload(file, ready, true), false);
+  assert.equal(canReviewUpload(file, empty, false), false);
+  assert.equal(canReviewUpload(file, ready, false), true);
+});
 
 describe("inspectFastaUpload", () => {
   test("normalizes RNA and reports review facts", () => {

@@ -5,6 +5,8 @@ from pydantic import ValidationError
 
 from app.modules.guide_mapping import GuideMappingRequest, map_guides
 from app.modules.guide_mapping.contracts import (
+    MAX_GUIDE_CANDIDATES,
+    MAX_MAPPING_TARGET_BASES,
     DesiredEdit,
     GuideCandidate,
     GuideMap,
@@ -15,6 +17,41 @@ from app.modules.simulation.nucleotides import revcomp
 GUIDE_C = "AAACACAAAAAAAAAAAAAA"
 GUIDE_A = "GGGAGGGGGGGGGGGGGGGG"
 SOURCE_VERSION = "sha256:" + "1" * 64
+
+
+def test_long_targets_stop_before_candidate_discovery(monkeypatch):
+    from app.modules.guide_mapping import mapper, ranking
+
+    monkeypatch.setattr(mapper, "_candidate", lambda *args: pytest.fail("must not scan"))
+    monkeypatch.setattr(ranking, "_local_specificity", lambda *args: pytest.fail("must not rank"))
+    sequence = "A" * (MAX_MAPPING_TARGET_BASES + 1)
+    result = map_guides(GuideMappingRequest(
+        sequence=sequence, source_version_id=SOURCE_VERSION,
+        source_record_id="long", editor="CBE",
+    ))
+    assert result.candidates == ()
+    assert [issue.code for issue in result.issues] == ["target_length_limit"]
+    assert ranking.rank_guides(result, sequence).assessments == ()
+
+
+def test_target_limit_boundary_is_inclusive():
+    result = map_guides(GuideMappingRequest(
+        sequence="A" * MAX_MAPPING_TARGET_BASES, source_version_id=SOURCE_VERSION,
+        source_record_id="boundary", editor="CBE",
+    ))
+    assert [issue.code for issue in result.issues] == ["no_compatible_guide"]
+
+
+def test_dense_targets_return_issue_not_a_silently_truncated_candidate_set():
+    sequence = _target(GUIDE_C) * (MAX_GUIDE_CANDIDATES + 1)
+    assert len(sequence) <= MAX_MAPPING_TARGET_BASES
+    result = map_guides(GuideMappingRequest(
+        sequence=sequence, source_version_id=SOURCE_VERSION,
+        source_record_id="dense", editor="CBE",
+    ))
+    assert result.candidates == ()
+    assert result.executable is False
+    assert [issue.code for issue in result.issues] == ["candidate_count_limit"]
 
 
 def _target(guide, pam="AGG"):

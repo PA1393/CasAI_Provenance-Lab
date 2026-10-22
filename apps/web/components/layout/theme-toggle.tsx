@@ -1,27 +1,42 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type Theme = "light" | "dark";
-const storageKey = "casai-theme";
+import { resolveTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
+  const [explicitTheme, setExplicitTheme] = useState<Theme | null>(null);
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
-    function sync(event: StorageEvent) {
-      if (event.key !== storageKey) return;
-      const next = event.newValue === "dark" ? "dark" : "light";
+    const preference = window.matchMedia("(prefers-color-scheme: dark)");
+    function apply(saved: string | null) {
+      const next = resolveTheme(saved, preference.matches);
       document.documentElement.dataset.theme = next;
       setTheme(next);
     }
+    function syncSystem() {
+      let saved: string | null = explicitTheme;
+      try { saved = localStorage.getItem(THEME_STORAGE_KEY) ?? explicitTheme; } catch {}
+      apply(saved);
+    }
+    function sync(event: StorageEvent) {
+      if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
+      const saved = event.newValue;
+      setExplicitTheme(saved === "light" || saved === "dark" ? saved : null);
+      apply(saved);
+    }
+    syncSystem();
     window.addEventListener("storage", sync);
-    return () => window.removeEventListener("storage", sync);
-  }, []);
+    preference.addEventListener("change", syncSystem);
+    return () => {
+      window.removeEventListener("storage", sync);
+      preference.removeEventListener("change", syncSystem);
+    };
+  }, [explicitTheme]);
   function select(next: Theme) {
     document.documentElement.dataset.theme = next;
     setTheme(next);
-    try { localStorage.setItem(storageKey, next); } catch {
+    setExplicitTheme(next);
+    try { localStorage.setItem(THEME_STORAGE_KEY, next); } catch {
       // Theme switching also works when persistent storage is unavailable.
     }
   }

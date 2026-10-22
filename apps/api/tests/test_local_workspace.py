@@ -1,7 +1,9 @@
 """Local artifact/draft persistence tests; no database, network or confirmation."""
 
 import base64
+import errno
 import json
+import os
 
 import pytest
 
@@ -25,6 +27,52 @@ def _sequence(content: str = ">source\r\nacgt\r\n") -> ResearchDraft:
     return process_input(
         IntakeRequest(input_method="fasta", content=content, molecule_type="DNA")
     )
+
+
+def test_workspace_falls_back_to_exclusive_creation_without_hard_links(tmp_path, monkeypatch):
+    def unsupported(*args):
+        raise OSError(errno.EOPNOTSUPP, "links unsupported")
+
+    monkeypatch.setattr(os, "link", unsupported)
+    workspace = LocalWorkspace(tmp_path)
+    draft = _sequence()
+    first = workspace.save_draft(draft)
+    assert workspace.save_draft(draft) == first
+    assert workspace.load_draft(first.draft_id) == draft
+    assert not tuple(tmp_path.rglob(".casai-*"))
+
+
+@pytest.mark.parametrize("same_bytes", [True, False])
+def test_exclusive_fallback_never_overwrites_a_racing_writer(tmp_path, monkeypatch, same_bytes):
+    target = tmp_path / "object"
+    winner = b"expected" if same_bytes else b"other"
+
+    def race(source, destination):
+        target.write_bytes(winner)
+        raise OSError(errno.EOPNOTSUPP, "links unsupported")
+
+    monkeypatch.setattr(os, "link", race)
+    if same_bytes:
+        LocalWorkspace._atomic_create(target, b"expected")
+    else:
+        with pytest.raises(WorkspaceIntegrityError, match="conflicting bytes"):
+            LocalWorkspace._atomic_create(target, b"expected")
+    assert target.read_bytes() == winner
+
+
+def test_link_race_cannot_accept_a_symlink_even_with_identical_bytes(tmp_path, monkeypatch):
+    target = tmp_path / "object"
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"expected")
+
+    def race(source, destination):
+        target.symlink_to(outside)
+        raise FileExistsError
+
+    monkeypatch.setattr(os, "link", race)
+    with pytest.raises(WorkspaceIntegrityError, match="conflicting bytes"):
+        LocalWorkspace._atomic_create(target, b"expected")
+    assert outside.read_bytes() == b"expected"
 
 
 def _fastq() -> DatasetDraft:

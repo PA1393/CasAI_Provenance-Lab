@@ -67,6 +67,67 @@ Existing Supabase rows containing historical mock fields are not rewritten by
 this change. Cleanup requires a separately reviewed data migration with known
 targets. The new policy applies to newly created records.
 
+## Follow-up review corrections (2026-10-22)
+
+- Ignore `.casai-workspace/` at any depth, including raw uploads. This prevents
+  accidental Git staging; it does not encrypt local data or replace access control.
+- Bound guide mapping to 5,000 bases and 64 candidates. An exceeded ceiling
+  returns `target_length_limit` or `candidate_count_limit`, no candidates and an
+  empty ranking. Never rank a silently truncated subset. Narrow the supplied
+  target/PAM and remap; genome-scale analysis requires a separate indexed engine.
+  Persisted maps exceeding the candidate ceiling fail validation on reopen.
+- Record unexpected adapter exceptions as sanitized failed-stage outcomes,
+  preserving prior artifacts and required/optional-stage behavior. Interrupts
+  are not swallowed; no fallback scientific result is invented.
+- Put CORS outside transport middleware so 413/429 responses remain readable;
+  exempt OPTIONS from rate budgets and expose `Retry-After`.
+- Exempt only development `/docs`, `/redoc` and `/docs/oauth2-redirect` pages
+  from API-only CSP. Other routes and production keep the restrictive policy;
+  hosted interactive documentation is not enabled for production.
+- Offload multipart FASTQ/VCF and reference parsing to worker threads after
+  bounded upload reads; sequence/draft routes already use sync worker dispatch.
+- Run push workflows only on `main`, retaining PR and manual triggers. The known
+  unpatched `braces` advisory remains visible; no audit exception was introduced.
+- Return explicit backend `stage_status` in provenance responses without a DB
+  migration. Unknown/new events are visibly `unknown`, not inferred from suffixes;
+  resolving an intent alone is running until schema validation completes.
+- Fall back to exclusive `O_EXCL` creation when hard links are unsupported.
+  Existing objects and concurrent winners are never overwritten. Unlike link
+  publication, the fallback cannot guarantee atomic visibility or crash durability
+  on every filesystem; partial objects fail integrity checks and need explicit
+  recovery. Do not advertise all network/FAT filesystems as fully certified.
+- Default to OS light/dark preference unless a valid user preference is saved;
+  follow live OS changes until overridden. Storage denial still permits switching.
+- Use the same tested no-file/invalid-file/reading guard on the Review button
+  and submit handler. Removing the native file `required` attribute does not
+  bypass validation, including when files are selected through drag/drop.
+
+### Decisions required before production workflow/session persistence
+
+`actor_id` is an unverified, client-supplied attribution label in this no-auth
+demo. It MUST NOT authorize approval or separation of duties. Before exposing
+those workflows, introduce a trusted server identity boundary and derive actors
+from that context, not request JSON. Authentication is intentionally not added
+in this correction.
+
+Current v1 execution session/attempt IDs are deterministic, in-memory lineage
+identifiers, not durable unique invocation IDs. Before persistence, version the
+contract: retain deterministic plan/content IDs but assign a server-generated
+unique session nonce per invocation and derive attempt IDs from session identity,
+ordinal and retry parent. Scope any client idempotency key to the trusted actor
+and submission. Repeating that key must reopen the same submission; a fresh
+invocation must create a distinct session even for the same plan. Do not persist
+the current v1 sessions as unique run records or silently reinterpret their IDs.
+
+Future delivery work should use smaller focused PRs. This correction updates
+the already requested consolidated PR without rewriting its history.
+
+Review-correction validation: backend lint and all 577 tests pass; all 12
+frontend behavior tests, TypeScript, ESLint and Next.js production build pass.
+`git diff --check` passes. `bun audit --audit-level high` still reports the one
+known unpatched advisory above. Filesystem fallback was tested with simulated
+unsupported-link and concurrent-writer conditions, not physical FAT/network media.
+
 ## Validation for this increment
 
 - `bun run lint:api`: passed.

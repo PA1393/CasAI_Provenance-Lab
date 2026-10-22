@@ -80,6 +80,9 @@ class SecurityHeadersMiddleware:
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", ()))
                 existing = {name.lower() for name, _ in headers}
+                dev_docs = not self.production and scope.get("path") in {
+                    "/docs", "/docs/oauth2-redirect", "/redoc",
+                }
                 additions = (
                     (b"x-content-type-options", b"nosniff"),
                     (b"x-frame-options", b"DENY"),
@@ -88,7 +91,11 @@ class SecurityHeadersMiddleware:
                     (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
                     (b"cache-control", b"no-store"),
                 )
-                headers.extend(item for item in additions if item[0] not in existing)
+                headers.extend(
+                    item for item in additions
+                    if item[0] not in existing
+                    and not (dev_docs and item[0] == b"content-security-policy")
+                )
                 if self.production and b"strict-transport-security" not in existing:
                     headers.append(
                         (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
@@ -117,7 +124,7 @@ class RateLimitMiddleware:
         self._buckets: OrderedDict[str, tuple[float, int]] = OrderedDict()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or self.limit == 0:
+        if scope["type"] != "http" or self.limit == 0 or scope.get("method") == "OPTIONS":
             await self.app(scope, receive, send)
             return
 

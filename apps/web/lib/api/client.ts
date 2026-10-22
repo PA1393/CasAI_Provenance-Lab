@@ -59,6 +59,7 @@ export type ProvenanceEvent = {
   run_id: string;
   stage: string;
   event_type: string;
+  stage_status?: "pending" | "running" | "completed" | "failed" | "unknown";
   message: string;
   payload: Record<string, unknown> | null;
   duration_ms: number | null;

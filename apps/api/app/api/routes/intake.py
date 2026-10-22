@@ -6,6 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Response, UploadFile
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from app.api.dependencies import get_intake_workspace
 from app.modules.information_processor.confirmation import (
@@ -350,7 +351,8 @@ async def inspect_dataset(
                 raise InputValidationError(
                     "incompatible_inputs", "FASTQ inspection does not accept a reference"
                 )
-            result = inspect_input(
+            result = await run_in_threadpool(
+                inspect_input,
                 FastqInspectionRequest(
                     content=primary_content,
                     filename=_safe_filename(primary, "reads.fastq"),
@@ -365,7 +367,8 @@ async def inspect_dataset(
                 raise InputValidationError(
                     "incompatible_inputs", "VCF inspection does not accept FASTQ mate options"
                 )
-            result = inspect_input(
+            result = await run_in_threadpool(
+                inspect_input,
                 VcfInspectionRequest(
                     content=primary_content,
                     filename=_safe_filename(primary, "variants.vcf"),
@@ -403,7 +406,8 @@ async def inspect_reference(
     expected_sequence_checksum: str | None = Form(default=None),
 ) -> ReferenceInspectionResponse:
     try:
-        draft = resolve_supplied_reference(
+        draft = await run_in_threadpool(
+            resolve_supplied_reference,
             SuppliedReferenceRequest(
                 content=await _read_bounded(reference),
                 filename=_safe_filename(reference, "reference.fasta"),

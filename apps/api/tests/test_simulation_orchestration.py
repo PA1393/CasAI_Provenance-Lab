@@ -1,6 +1,7 @@
 """Exact engine dispatch and required/optional execution behavior."""
 
 from dataclasses import dataclass, field
+from subprocess import CalledProcessError, TimeoutExpired
 
 import pytest
 
@@ -19,6 +20,52 @@ from app.modules.simulation import (
 RESEARCH_ID = "sha256:" + "1" * 64
 GUIDE_ID = "sha256:" + "2" * 64
 RESULT_ID = "sha256:" + "3" * 64
+
+
+@pytest.mark.parametrize("failure", [
+    ValueError("private sequence"), TimeoutError("private path"),
+    TimeoutExpired("private command", 1), CalledProcessError(1, "private command"),
+])
+@pytest.mark.parametrize("requirement", ["required", "optional"])
+def test_unexpected_adapter_errors_preserve_prior_results_and_stage_semantics(failure, requirement):
+    class UnexpectedEngine(FakeEngine):
+        def execute(self, request):
+            if request.operation == "break":
+                raise failure
+            return super().execute(request)
+
+    engine = UnexpectedEngine("casai.sequence", "1", frozenset({"edit", "break", "score"}))
+    execution = execute_plan(_plan(
+        _stage("edit", "edit"), _stage("broken", "break", requirement=requirement),
+        _stage("score", "score"),
+    ), EngineRegistry((engine,)))
+    assert execution.stages[0].artifacts[0].artifact_id == RESULT_ID
+    assert execution.stages[1].error == f"engine execution failed: {type(failure).__name__}"
+    assert "private" not in execution.model_dump_json()
+    assert execution.stages[1].artifacts == ()
+    assert execution.stages[2].status == ("skipped" if requirement == "required" else "succeeded")
+    assert execution.status == ("failed" if requirement == "required" else "partial")
+
+
+def test_invalid_adapter_result_is_recorded_as_failure():
+    class InvalidEngine(FakeEngine):
+        def execute(self, request):
+            return {"artifacts": [{"invalid": "private"}]}
+
+    engine = InvalidEngine("casai.sequence", "1", frozenset({"edit"}))
+    outcome = execute_plan(_plan(_stage("edit", "edit")), EngineRegistry((engine,)))
+    assert outcome.status == "failed"
+    assert outcome.stages[0].error == "engine execution failed: ValidationError"
+
+
+def test_process_control_exceptions_are_not_swallowed():
+    class InterruptedEngine(FakeEngine):
+        def execute(self, request):
+            raise KeyboardInterrupt
+
+    engine = InterruptedEngine("casai.sequence", "1", frozenset({"edit"}))
+    with pytest.raises(KeyboardInterrupt):
+        execute_plan(_plan(_stage("edit", "edit")), EngineRegistry((engine,)))
 
 
 @dataclass

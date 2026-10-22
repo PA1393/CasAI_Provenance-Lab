@@ -192,18 +192,24 @@ def _execute_stage(
 ) -> StageExecution:
     try:
         adapter = registry.resolve(stage)
-        result = adapter.execute(
-            EngineRequest(
-                plan_id=plan.plan_id,
-                stage_id=stage.stage_id,
-                operation=stage.operation,
-                settings=stage.settings,
-                plan_inputs=plan.inputs,
-                upstream_artifacts=artifacts,
+        result = EngineResult.model_validate(
+            adapter.execute(
+                EngineRequest(
+                    plan_id=plan.plan_id,
+                    stage_id=stage.stage_id,
+                    operation=stage.operation,
+                    settings=stage.settings,
+                    plan_inputs=plan.inputs,
+                    upstream_artifacts=artifacts,
+                )
             )
         )
     except EngineExecutionError as exc:
         return _failed(stage, str(exc))
+    except Exception as exc:
+        # Adapter diagnostics may contain researcher data, paths or subprocess output.
+        # Record the failure category without leaking those details or losing earlier stages.
+        return _failed(stage, f"engine execution failed: {type(exc).__name__}")
     return StageExecution(
         stage_id=stage.stage_id,
         requirement=stage.requirement,

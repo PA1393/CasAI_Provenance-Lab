@@ -10,6 +10,13 @@ research-object version ID, source record ID, editor, PAM, guide length,
 reference bases must match the supplied target. Duplicate or out-of-range desired
 positions are rejected.
 
+The current mapper accepts up to 5,000 target bases and 64 candidates to bound
+local-specificity ranking and stored/returned payloads. Exceeding either limit
+produces `target_length_limit` or `candidate_count_limit` with no candidates and
+an empty ranking, not a silently truncated result. Supply a narrower target or
+more restrictive PAM and remap. These limits are not a genome-wide search engine;
+older persisted maps above the candidate ceiling fail validation when reopened.
+
 `map_guides(...)` enumerates both target orientations. A candidate is emitted
 only when:
 

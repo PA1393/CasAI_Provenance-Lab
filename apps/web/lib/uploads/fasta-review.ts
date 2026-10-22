@@ -20,6 +20,14 @@ export type FastaReview = {
   ready: boolean;
 };
 
+export function canReviewUpload(
+  file: { name: string } | null,
+  review: FastaReview | null,
+  reading: boolean,
+): boolean {
+  return !!file && !!review?.ready && !reading;
+}
+
 function extensionOf(filename: string): string {
   return filename.split(".").pop()?.toLowerCase() ?? "";
 }

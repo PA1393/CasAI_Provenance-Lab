@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from app.modules.guide_mapping.contracts import (
+    MAX_GUIDE_CANDIDATES,
+    MAX_MAPPING_TARGET_BASES,
     CandidateAssessment,
     GuideCandidate,
     GuideMap,
@@ -119,6 +121,11 @@ def rank_guides(guide_map: GuideMap, sequence: str) -> GuideRanking:
     """Rank every candidate lexicographically while preserving each heuristic component."""
 
     normalized = sequence.upper()
+    if guide_map.candidates and (
+        len(normalized) > MAX_MAPPING_TARGET_BASES
+        or len(guide_map.candidates) > MAX_GUIDE_CANDIDATES
+    ):
+        raise ValueError("Guide map exceeds bounded ranking limits; map a smaller target")
     if sequence != normalized or set(normalized) - set(IUPAC):
         raise ValueError("Ranking target must be uppercase DNA/IUPAC")
     if len(normalized) != guide_map.target_length or checksum(

@@ -20,13 +20,6 @@ from app.core.security import (
 
 app = FastAPI(title=settings.app_name)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.cors_origin],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type"],
-)
 app.add_middleware(RequestSizeLimitMiddleware, max_bytes=settings.max_request_bytes)
 app.add_middleware(
     RateLimitMiddleware,
@@ -36,6 +29,15 @@ app.add_middleware(
 app.add_middleware(
     SecurityHeadersMiddleware,
     production=settings.environment == "production",
+)
+# Last added is outermost: transport rejections must remain readable by the UI.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.cors_origin],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Accept", "Content-Type"],
+    expose_headers=["Retry-After"],
 )
 
 app.include_router(health_router)

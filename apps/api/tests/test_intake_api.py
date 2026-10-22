@@ -1,7 +1,12 @@
 """HTTP intake boundary tests; responses must never expose original biological payloads."""
 
+import asyncio
+import threading
+
+import pytest
 from fastapi.testclient import TestClient
 
+from app.api.routes import intake as routes
 from app.main import app
 from app.modules.information_processor.contracts import MAX_INPUT_BYTES
 
@@ -11,6 +16,32 @@ VCF = (
     b"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
     b"chr1\t2\trs1\tC\tT\t50\tPASS\tDP=12\n"
 )
+
+
+@pytest.mark.parametrize("kind", ["fastq", "vcf", "reference"])
+def test_multipart_parsing_runs_off_the_event_loop(monkeypatch, kind):
+    original = routes.resolve_supplied_reference if kind == "reference" else routes.inspect_input
+    seen = []
+
+    def checked(request):
+        # An async route's event-loop thread has a running loop; its worker does not.
+        with pytest.raises(RuntimeError, match="no running event loop"):
+            asyncio.get_running_loop()
+        seen.append(threading.get_ident())
+        return original(request)
+
+    monkeypatch.setattr(routes, (
+        "resolve_supplied_reference" if kind == "reference" else "inspect_input"
+    ), checked)
+    if kind == "reference":
+        response = client.post("/api/v1/intake/references/verify", data={"assembly": "demo"},
+                               files={"reference": ("ref.fa", b">chr1\nACGT\n")})
+    else:
+        content = b"@r\nAC\n+\nII\n" if kind == "fastq" else VCF
+        response = client.post("/api/v1/intake/datasets/inspect", data={"declared_format": kind},
+                               files={"primary": (f"input.{kind}", content)})
+    assert response.status_code == 200
+    assert seen
 
 
 def test_sequence_endpoint_returns_summary_without_raw_sequence():

@@ -11,6 +11,25 @@ GUIDE = "AAACACAAAAAAAAAAAAAA"
 SEQUENCE = "TTTT" + GUIDE + "AGG" + "TTTT"
 
 
+@pytest.mark.parametrize("sequence,code", [
+    ("A" * 5_001, "target_length_limit"),
+    (SEQUENCE * 65, "candidate_count_limit"),
+])
+def test_mapping_limits_are_visible_without_partial_results(client, sequence, code):
+    http, workspace = client
+    confirmed = _confirmed(http, content=f">target\n{sequence}\n")
+    response = http.post("/api/v1/guide-maps", json=_request(
+        confirmed["version_id"], desired_edits=[],
+    ))
+    assert response.status_code == 201
+    body = response.json()
+    assert body["candidates"] == []
+    assert body["executable"] is False
+    assert [issue["code"] for issue in body["issues"]] == [code]
+    assert workspace.load_guide_map(body["map_id"]).candidates == ()
+    assert workspace.load_guide_ranking(body["ranking_id"]).assessments == ()
+
+
 @pytest.fixture
 def client(tmp_path):
     workspace = LocalWorkspace(tmp_path / "workspace")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -214,10 +215,29 @@ class LocalWorkspace:
             try:
                 os.link(temporary, path)
             except FileExistsError:
-                if not path.is_file() or path.read_bytes() != content:
+                if path.is_symlink() or not path.is_file() or path.read_bytes() != content:
                     raise WorkspaceIntegrityError(
                         "Immutable workspace object has conflicting bytes"
                     )
+            except OSError as exc:
+                if exc.errno not in {
+                    errno.EPERM, errno.EXDEV, errno.ENOSYS, errno.ENOTSUP, errno.EOPNOTSUPP,
+                }:
+                    raise
+                # FAT/exFAT and some shares do not support links. Exclusive creation
+                # never overwrites a winner; failed/partial writes fail checksum checks.
+                try:
+                    exclusive = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                except FileExistsError:
+                    if path.is_symlink() or not path.is_file() or path.read_bytes() != content:
+                        raise WorkspaceIntegrityError(
+                            "Immutable workspace object has conflicting bytes"
+                        ) from None
+                else:
+                    with os.fdopen(exclusive, "wb") as stream:
+                        stream.write(content)
+                        stream.flush()
+                        os.fsync(stream.fileno())
         finally:
             temporary.unlink(missing_ok=True)
 

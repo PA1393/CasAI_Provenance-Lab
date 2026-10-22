@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createResearchObject } from "@/lib/api/client";
 import { parseTargetRegion } from "@/lib/uploads/target-region";
 import {
+  canReviewUpload,
   inspectFastaUpload,
   MAX_UPLOAD_BYTES,
   type FastaReview,
@@ -77,7 +78,7 @@ export function InputBundleForm() {
   function openReview(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!file || !review?.ready) {
+    if (!canReviewUpload(file, review, reading)) {
       setError("Choose a valid FASTA file before continuing.");
       return;
     }
@@ -319,7 +320,7 @@ export function InputBundleForm() {
         </p>
         <button
           type="submit"
-          disabled={reading || !review?.ready}
+          disabled={!canReviewUpload(file, review, reading)}
           className="shrink-0 rounded-lg bg-text px-5 py-3 text-sm font-semibold text-bg hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
         >
           Review upload

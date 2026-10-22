@@ -3,11 +3,18 @@
 import asyncio
 
 import pytest
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from starlette.middleware import Middleware
 
 from app.core.config import Settings, settings
-from app.core.security import RateLimitMiddleware, RequestSizeLimitMiddleware
+from app.core.security import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.main import app
 
 
@@ -29,11 +36,52 @@ def test_declared_oversized_request_is_rejected_before_routing():
     response = client.post(
         "/health",
         content=b"x",
-        headers={"content-length": str(settings.max_request_bytes + 1)},
+        headers={
+            "content-length": str(settings.max_request_bytes + 1),
+            "origin": settings.cors_origin,
+        },
     )
 
     assert response.status_code == 413
     assert response.json()["error"]["code"] == "request_too_large"
+    assert response.headers["access-control-allow-origin"] == settings.cors_origin
+
+
+def test_rate_rejections_have_cors_and_options_do_not_consume_budget():
+    # Use the real application middleware order with a small isolated quota.
+    middlewares = [Middleware(item.cls, **{
+        **item.kwargs,
+        **({"requests_per_minute": 1} if item.cls is RateLimitMiddleware else {}),
+    }) for item in app.user_middleware]
+    assert middlewares[0].cls is CORSMiddleware
+    client = TestClient(FastAPI(middleware=middlewares))
+    for _ in range(3):
+        assert client.options("/", headers={
+            "origin": settings.cors_origin, "access-control-request-method": "POST",
+        }).status_code == 200
+        assert client.options("/").status_code != 429
+    assert client.get("/").status_code == 404
+    rejected = client.get("/", headers={"origin": settings.cors_origin})
+    assert rejected.status_code == 429
+    assert rejected.headers["access-control-allow-origin"] == settings.cors_origin
+    assert "retry-after" in rejected.headers
+    assert "Retry-After" in rejected.headers["access-control-expose-headers"]
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/docs/oauth2-redirect"])
+def test_development_docs_are_not_blocked_by_api_csp(path):
+    response = TestClient(app).get(path)
+    assert response.status_code == 200
+    assert "content-security-policy" not in response.headers
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_production_keeps_conservative_headers_even_on_docs():
+    production = FastAPI()
+    production.add_middleware(SecurityHeadersMiddleware, production=True)
+    response = TestClient(production).get("/docs")
+    assert response.headers["content-security-policy"].startswith("default-src 'none'")
+    assert "strict-transport-security" in response.headers
 
 
 def test_streamed_body_is_bounded_even_without_content_length():

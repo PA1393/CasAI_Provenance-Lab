@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from app.modules.guide_mapping.contracts import (
+    MAX_GUIDE_CANDIDATES,
+    MAX_MAPPING_TARGET_BASES,
     CandidateEdit,
     GuideCandidate,
     GuideMap,
@@ -128,16 +130,38 @@ def _compatibility_issues(request: GuideMappingRequest) -> list[MappingIssue]:
 
 
 def map_guides(request: GuideMappingRequest) -> GuideMap:
-    """Enumerate every full-length, PAM-adjacent, editor-compatible guide candidate."""
+    """Enumerate a bounded target, or return an explicit issue without partial ranking."""
 
     candidates = []
     sequence = request.sequence
     span = request.guide_length + len(request.pam)
-    for strand, strand_sequence in (("+", sequence), ("-", revcomp(sequence))):
-        for start in range(max(0, len(sequence) - span + 1)):
-            candidate = _candidate(request, strand, strand_sequence, start)
-            if candidate is not None:
-                candidates.append(candidate)
+    limit_issue = None
+    if len(sequence) > MAX_MAPPING_TARGET_BASES:
+        limit_issue = MappingIssue(
+            code="target_length_limit",
+            message=(
+                f"Mapping supports at most {MAX_MAPPING_TARGET_BASES} bases; "
+                "supply a smaller target"
+            ),
+        )
+    else:
+        for strand, strand_sequence in (("+", sequence), ("-", revcomp(sequence))):
+            for start in range(max(0, len(sequence) - span + 1)):
+                candidate = _candidate(request, strand, strand_sequence, start)
+                if candidate is not None:
+                    candidates.append(candidate)
+                    if len(candidates) > MAX_GUIDE_CANDIDATES:
+                        limit_issue = MappingIssue(
+                            code="candidate_count_limit",
+                            message=(
+                                f"Mapping exceeds {MAX_GUIDE_CANDIDATES} candidates; "
+                                "supply a smaller target or more restrictive PAM"
+                            ),
+                        )
+                        candidates.clear()
+                        break
+            if limit_issue is not None:
+                break
 
     issues = _compatibility_issues(request)
     compatible_desired = {
@@ -155,8 +179,11 @@ def map_guides(request: GuideMappingRequest) -> GuideMap:
             position=position,
         )
         for position in sorted(compatible_desired - mapped_desired)
+        if limit_issue is None
     )
-    if not candidates:
+    if limit_issue is not None:
+        issues.append(limit_issue)
+    elif not candidates:
         issues.append(
             MappingIssue(
                 code="no_compatible_guide",
