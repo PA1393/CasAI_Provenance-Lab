@@ -120,3 +120,23 @@ Full latest-backend upload/run/results/3D rehearsal remains a deployment gate,
 not a completed test. Platform packaging outcomes and native launch evidence
 must be reported separately. The existing `braces` advisory remains unsuppressed;
 passing functional tests does not make the dependency audit clean.
+
+## Approved layout integration (2026-10-22)
+
+The shared web/desktop views now implement the approved layout family: compact
+workbench steps, upload/checklist intake, and result cards/table with a run-record
+rail. Both themes use the same components. The results table preserves backend
+order, never claims ranking, and leaves invalid/missing scores absent.
+View provenance was verified in the packaged Mac app to select and focus the
+Provenance tab for an existing run. Native inspection also verified light/dark
+switching, the new intake checklist, and disabled Review with no selected file.
+These were read-only checks against historical demo records, not a fresh
+latest-backend run or evidence of scientific validity. No new submissions were
+made during this layout verification.
+
+Pre-push layout checks: 577 backend tests and backend lint, 16 web behavior
+tests, web TypeScript/ESLint/production build, 12 desktop tests and desktop
+TypeScript/Vite build passed. The Mac package rebuilt and its ad-hoc signature
+verified. The three native boundary tests passed for the desktop increment;
+native Rust source is unchanged by this layout change. The dependency audit
+still reports the known high-severity braces advisory; it is not audit-clean.

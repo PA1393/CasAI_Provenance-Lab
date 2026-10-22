@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { createResearchObject } from "@/lib/api/client";
 import { parseTargetRegion } from "@/lib/uploads/target-region";
@@ -121,6 +122,7 @@ export function InputBundleForm() {
         className="overflow-hidden rounded-xl border border-border-strong bg-bg-card"
         aria-labelledby="review-title"
       >
+        <IntakeSteps current={2} />
         <div className="grid border-b border-border bg-bg-sunken md:grid-cols-[1fr_auto] md:items-end">
           <div className="p-6 md:p-8">
             <p className="text-sm font-medium text-accent">Ready to create</p>
@@ -178,7 +180,7 @@ export function InputBundleForm() {
             type="button"
             onClick={createObject}
             disabled={submitting}
-            className="rounded-lg bg-text px-5 py-3 text-sm font-semibold text-bg hover:bg-accent disabled:opacity-50"
+            className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-bg hover:bg-accent-bright disabled:opacity-50"
           >
             {submitting ? "Creating record…" : "Create research object"}
           </button>
@@ -192,10 +194,11 @@ export function InputBundleForm() {
       onSubmit={openReview}
       className="overflow-hidden rounded-xl border border-border-strong bg-bg-card"
     >
-      <div className="grid border-b border-border md:grid-cols-[minmax(0,1fr)_15rem]">
+      <IntakeSteps current={review?.ready ? 1 : 0} />
+      <div className="grid border-b border-border md:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="p-6 md:p-8">
           <label htmlFor="sequence-file" className="text-sm font-semibold">
-            Sequence source
+            Choose a FASTA file
           </label>
           <p className="mt-1 text-sm leading-6 text-text-secondary">
             FASTA, FA, or FNA · up to 10 MB
@@ -229,9 +232,26 @@ export function InputBundleForm() {
                   : "The file stays in your browser until you create the record."}
             </span>
           </button>
+          {file && (
+            <div className="mt-4 flex items-center justify-between gap-4 rounded-lg border border-border bg-bg-sunken/50 px-4 py-3">
+              <div className="min-w-0">
+                <p className="break-all text-sm font-semibold">{file.name}</p>
+                <p className="mt-1 text-xs text-muted">{review?.ready ? `${review.sequenceLength.toLocaleString()} bp · ${review.recordCount} record(s)` : reading ? "Reading locally…" : "Check file validation below"}</p>
+              </div>
+              <button type="button" className="rounded-lg border border-border-strong px-3 py-2 text-xs font-semibold hover:bg-bg-card" onClick={() => {
+                if (fileInput.current) fileInput.current.value = "";
+                void inspectFile(null);
+              }}>Remove</button>
+            </div>
+          )}
         </div>
         <div className="border-t border-border bg-bg-sunken/60 p-6 md:border-l md:border-t-0 md:p-8">
-          <p className="text-xs font-medium text-muted">Intake check</p>
+          <h2 className="font-serif-display text-xl">Input checklist</h2>
+          <ul className="mt-5 space-y-4 text-sm" aria-label="Input checklist">
+            <ChecklistItem checked={!!file} label="File selected" />
+            <ChecklistItem checked={!!review?.ready && !reading} label="Sequence readable" />
+            <ChecklistItem checked={false} label="Review and confirmation required" />
+          </ul>
           <p
             className={`mt-2 text-sm font-semibold ${review?.ready ? "text-accent" : "text-text-secondary"}`}
           >
@@ -314,17 +334,20 @@ export function InputBundleForm() {
         />
       ))}
       {error && <ErrorMessage message={error} />}
-      <div className="flex items-center justify-between gap-4 border-t border-border px-6 py-5 md:px-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-6 py-5 md:px-8">
         <p className="text-xs leading-5 text-muted">
           Nothing is uploaded until you save the reviewed input.
         </p>
+        <div className="flex items-center gap-3">
+        <Link href="/research-objects" className="rounded-lg border border-border-strong px-5 py-3 text-sm font-semibold hover:bg-bg-sunken">Cancel</Link>
         <button
           type="submit"
           disabled={!canReviewUpload(file, review, reading)}
-          className="shrink-0 rounded-lg bg-text px-5 py-3 text-sm font-semibold text-bg hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-bg hover:bg-accent-bright disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Review upload
+          Review input
         </button>
+        </div>
       </div>
     </form>
   );
@@ -332,6 +355,24 @@ export function InputBundleForm() {
 
 const inputClass =
   "mt-2 w-full rounded-lg border border-border-strong bg-bg-card px-4 py-3 text-text placeholder:text-muted focus:border-accent focus:outline-none";
+
+function IntakeSteps({ current }: { current: number }) {
+  return <ol aria-label="Intake progress" className="grid grid-cols-3 gap-3 border-b border-border px-6 py-5 md:px-8">
+    {["Choose file", "Details", "Review"].map((label, index) => (
+      <li key={label} aria-current={index === current ? "step" : undefined} className={index <= current ? "text-accent" : "text-muted"}>
+        <span className="mr-2 inline-grid h-7 w-7 place-items-center rounded-full bg-bg-sunken text-xs font-semibold">{index + 1}</span>
+        <span className="text-xs font-semibold sm:text-sm">{label}</span>
+      </li>
+    ))}
+  </ol>;
+}
+
+function ChecklistItem({ checked, label }: { checked: boolean; label: string }) {
+  return <li className="flex items-center gap-3">
+    <span aria-hidden="true" className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${checked ? "border-accent bg-accent-soft text-accent" : "border-border-strong text-muted"}`}>{checked ? "✓" : "–"}</span>
+    <span>{label}<span className="sr-only">{checked ? ": complete" : ": pending"}</span></span>
+  </li>;
+}
 
 function Field({
   label,

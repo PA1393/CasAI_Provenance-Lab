@@ -3,8 +3,33 @@
 These AI-generated design proposals use one visual system across three screens,
 each in light and dark mode. Generated with the built-in image tool; the exact
 prompt set is in `prompts.txt`. They are NOT screenshots, implementation evidence,
-scientific structures, or proof of a working hosted demo. No new alternative
-layout is selected or implemented by adding these files.
+scientific structures, or proof of a working hosted demo. The user subsequently
+approved implementing this layout family; see implementation status below.
+
+## Implemented after approval
+
+- Workbench: short product copy, three-column intake steps, existing-input/run
+  cards and actual data counts, with unavailable data kept distinct from zero.
+- Intake: three-step progress strip, upload/checklist columns, selected-file
+  summary and Remove action, Cancel and Review input controls. Existing file,
+  coordinate and required-detail validation remains in force. No file means no
+  advance to Review. FASTA only; no implied FASTQ/VCF UI support.
+- Results: three summary cards, recorded-designs table and Run record rail.
+  View provenance selects/focuses the existing Provenance tab. Open 3D tab selects
+  the explanatory viewer without automatically downloading a structure.
+- Scientific corrections to the concept board: rows are in backend order, NOT
+  ranked/recommended; design count is NOT a passing-filter count. Summary scores
+  are explicitly from the first stored result, not the best design. Missing or
+  invalid scores show a dash, never a fabricated zero or efficacy percentage.
+- Method version is not supplied by this API and is not invented. Actual input
+  hash, run ID, completion timestamp and run status populate the record rail.
+  Failed results/provenance requests display warnings rather than empty success.
+- Detailed sequences/notes and processing/timing details remain accessible in
+  disclosure panels. Existing backend records are unchanged.
+
+The board notes below describe the original proposals and their differences
+from the pre-implementation UI. Actual components, not generated pixels, are
+the source of truth for the approved implementation.
 
 ## Shared reference and current implementation
 
@@ -51,11 +76,10 @@ though result values are absent. Actual statuses must follow backend evidence.
 - Keep unavailable measurements absent; label scores as heuristics. Do not claim
   a public structure is mapped to the input or an enzyme trajectory is simulated.
 - Review the desktop transport, compatibility gate, packaging workflow, fixture
-  and deployment limitations in `../../desktop-demo.md` (from the docs root).
+  and deployment limitations in [desktop-demo.md](../../desktop-demo.md).
 - Confirm the hosted API is updated before permitting new demo submissions.
 - Windows/Linux packaging and clean-machine interactive launches remain release
   gates; local Mac launch does not prove all-platform readiness.
 
-This review bundle and the desktop implementation are local-only until an
-explicit push is authorized. No remote branch, PR or deployment is changed by
-this review step.
+The user has now authorized committing and pushing the approved layout and
+previous desktop work to KavNewPR. This does not authorize merging or deploying.

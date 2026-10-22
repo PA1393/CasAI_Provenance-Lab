@@ -36,7 +36,7 @@ export default async function HomePage() {
             Workbench
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
-            Source data, computational runs, and provenance stay together in one workspace.
+            Your inputs, runs, and results.
           </p>
         </div>
         <div
@@ -47,7 +47,7 @@ export default async function HomePage() {
           }`}
         >
           <span className={`h-2 w-2 rounded-full ${connected ? "bg-accent" : "bg-accent-amber"}`} />
-          {connected ? "Backend connected" : "Backend unavailable"}
+          {connected ? "API reachable" : "Backend unavailable"}
         </div>
       </div>
 
@@ -79,7 +79,7 @@ export default async function HomePage() {
 function StartResearchCard() {
   return (
     <section className="overflow-hidden rounded-2xl border border-border-strong bg-bg-card shadow-raised">
-      <div className="min-h-[19rem]">
+      <div className="min-h-[17rem]">
         <div className="flex flex-col p-6 sm:p-8">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-soft text-accent">
@@ -89,17 +89,13 @@ function StartResearchCard() {
               </svg>
             </span>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Start here</p>
-              <h2 className="mt-1 text-xl font-semibold text-text">Start a new analysis</h2>
+              <h2 className="font-serif-display text-2xl text-text">New analysis</h2>
             </div>
           </div>
-          <p className="mt-5 max-w-2xl text-sm leading-6 text-text-secondary">
-            Upload a FASTA sequence, review what CasAI detected, and confirm the exact record before any mapping or computation begins.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2" aria-label="Intake process">
-            <Step number="1" label="Choose FASTA" />
-            <Step number="2" label="Review fields" />
-            <Step number="3" label="Confirm record" />
+          <div className="mt-6 grid gap-4 sm:grid-cols-3" aria-label="Intake process">
+            <Step number="1" label="Choose FASTA" detail="Select your sequence file." />
+            <Step number="2" label="Review input" detail="Check the detected details." />
+            <Step number="3" label="Confirm record" detail="Save, then start a run." />
           </div>
           <div className="mt-auto flex flex-col gap-3 pt-7 sm:flex-row">
             <Link
@@ -264,12 +260,13 @@ function EmptyList({ copy }: { copy: string }) {
   return <p className="px-5 py-10 text-center text-sm text-muted">{copy}</p>;
 }
 
-function Step({ number, label }: { number: string; label: string }) {
+function Step({ number, label, detail }: { number: string; label: string; detail: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-sunken/70 py-1.5 pl-1.5 pr-3 text-xs font-medium text-text-secondary">
-      <span className="grid h-5 w-5 place-items-center rounded-full bg-bg-card text-[10px] font-bold text-accent shadow-sm">{number}</span>
-      {label}
-    </span>
+    <div>
+      <span className="mb-3 grid h-8 w-8 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent">{number}</span>
+      <p className="text-sm font-semibold text-text">{label}</p>
+      <p className="mt-1 text-xs leading-5 text-text-secondary">{detail}</p>
+    </div>
   );
 }
 

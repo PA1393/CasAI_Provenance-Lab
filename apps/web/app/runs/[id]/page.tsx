@@ -35,11 +35,14 @@ export default async function RunPage({ params }: Props) {
     );
   }
 
-  const [provenance, results, researchObject] = await Promise.all([
-    getRunProvenance(id).catch(() => []),
-    getRunResults(id).catch(() => []),
-    getResearchObject(run.research_object_id).catch(() => null),
+  const [provenanceResponse, resultsResponse, objectResponse] = await Promise.allSettled([
+    getRunProvenance(id),
+    getRunResults(id),
+    getResearchObject(run.research_object_id),
   ]);
+  const provenance = provenanceResponse.status === "fulfilled" ? provenanceResponse.value : [];
+  const results = resultsResponse.status === "fulfilled" ? resultsResponse.value : [];
+  const researchObject = objectResponse.status === "fulfilled" ? objectResponse.value : null;
 
   const editedSequence = results.find((r) => r.edited_sequence)?.edited_sequence ?? null;
 
@@ -61,12 +64,18 @@ export default async function RunPage({ params }: Props) {
         <RunStatusBadge status={run.status} />
       </div>
 
-      <h1 className="mt-3 font-serif-display text-3xl md:text-4xl">{run.prompt}</h1>
+      <h1 className="mt-3 font-serif-display text-3xl md:text-4xl">{run.status === "completed" ? "Results" : "Run progress"}</h1>
+      <p className="mt-3 text-sm leading-6 text-text-secondary">{run.prompt}</p>
       <Hash value={run.run_id} length={16} className="mt-2 block" />
 
-      <RunProgress run={run} provenance={provenance} />
+      <details className="mt-5 rounded-xl border border-border bg-bg-card p-5" open={run.status !== "completed"}>
+        <summary className="cursor-pointer text-sm font-semibold">Processing stages</summary>
+        {provenanceResponse.status === "rejected" ? <p role="alert" className="mt-4 text-sm text-accent-amber">Stage history could not be loaded.</p> : <RunProgress run={run} provenance={provenance} />}
+      </details>
 
-      <dl className="mt-8 grid grid-cols-2 gap-4 rounded-lg border border-border bg-bg-card p-6 sm:grid-cols-3">
+      <details className="mt-4 rounded-xl border border-border bg-bg-card p-5">
+      <summary className="cursor-pointer text-sm font-semibold">Input and timing details</summary>
+      <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="sm:col-span-2">
           <dt className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
             Research Object
@@ -108,6 +117,7 @@ export default async function RunPage({ params }: Props) {
           </div>
         )}
       </dl>
+      </details>
 
       <div className="mt-10">
         <RunTabs
@@ -118,6 +128,10 @@ export default async function RunPage({ params }: Props) {
           guideRna={run.guide_rna}
           editedSequence={editedSequence}
           sequence={researchObject?.sequence}
+          run={run}
+          researchObject={researchObject}
+          resultsUnavailable={resultsResponse.status === "rejected"}
+          provenanceUnavailable={provenanceResponse.status === "rejected"}
         />
       </div>
     </section>
