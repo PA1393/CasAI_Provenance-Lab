@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Annotated
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class ResearchObjectCreate(BaseModel):
@@ -6,11 +8,19 @@ class ResearchObjectCreate(BaseModel):
     input_filename: str
     input_file_type: str
     pdb_id: str
-    target_region: list[int] | None = None
+    target_region: list[Annotated[int, Field(strict=True, ge=1)]] | None = Field(
+        default=None, min_length=2, max_length=2
+    )
     # Raw FASTA upload text. Input-only — the service consumes it and stores the
     # sequence and the fields derived from it. Omit it and the research object is
     # created without a sequence, which the pipeline reports as an input failure.
     fasta_text: str | None = None
+
+    @model_validator(mode="after")
+    def validate_target_region(self):
+        if self.target_region is not None and self.target_region[1] < self.target_region[0]:
+            raise ValueError("Target coordinates must be 1-based inclusive, with end >= start")
+        return self
 
 
 class ResearchObject(BaseModel):

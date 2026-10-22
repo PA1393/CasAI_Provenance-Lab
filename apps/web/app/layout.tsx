@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteShell } from "@/components/layout/site-shell";
+import { THEME_BOOTSTRAP } from "@/lib/theme";
 
 // Fraunces for display: a warm serif with real italics, which is what stops the
 // headings reading like every other dark-mode developer tool. Inter carries the
@@ -41,8 +42,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      suppressHydrationWarning
     >
       <body>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-bg-card focus:p-3">Skip to content</a>
         <SiteShell>{children}</SiteShell>
       </body>
     </html>

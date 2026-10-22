@@ -3,8 +3,10 @@ sequence persisted, which is what lets the base-edit pipeline get past the
 `input` stage. Uses a fake Supabase so no live DB is needed."""
 
 import pytest
+from pydantic import ValidationError
 
 from app.modules.research_objects import service
+from app.schemas.research_objects import ResearchObjectCreate
 
 
 class _Recorder:
@@ -102,7 +104,11 @@ def test_without_fasta_no_sequence_is_stored(monkeypatch) -> None:
     service.create_research_object(_base_payload())
 
     assert rec.inserted.get("sequence") is None
-    assert rec.inserted["ro_hash"].startswith("sha256:mock_")
+    assert rec.inserted["ro_hash"].startswith("sha256:")
+    assert "mock" not in rec.inserted["ro_hash"]
+    assert rec.inserted["status"] == "draft"
+    assert rec.inserted["sequence_length"] is None
+    assert rec.inserted["fasta_preview"] is None
 
 
 def test_malformed_fasta_raises(monkeypatch) -> None:
@@ -111,3 +117,35 @@ def test_malformed_fasta_raises(monkeypatch) -> None:
 
     with pytest.raises(ValueError):
         service.create_research_object(_base_payload(fasta_text=">bad\nACGTXZ\n"))
+
+
+def test_target_coordinates_are_retained_without_mock_fallback(monkeypatch) -> None:
+    rec = _wire(monkeypatch)
+    service.create_research_object(_base_payload(fasta_text=">x\nACGT\n", target_region=[1, 1]))
+    assert rec.inserted["target_region"] == [1, 1]
+    for field in ("mmcif_hash", "mmcif_fetched_from", "avg_phred_score",
+                  "reads_total", "reads_passing_qc"):
+        assert rec.inserted[field] is None
+    service.create_research_object(_base_payload(fasta_text=">x\nACGT\n"))
+    assert rec.inserted.get("target_region") is None
+
+
+@pytest.mark.parametrize("region", [[0, 2], [2, 1], [1, 5], [1], [True, 2], [1.5, 2]])
+def test_invalid_target_coordinates_reject_before_persistence(monkeypatch, region) -> None:
+    rec = _wire(monkeypatch)
+    with pytest.raises(ValueError):
+        service.create_research_object(_base_payload(fasta_text=">x\nACGT\n", target_region=region))
+    assert rec.inserted is None
+
+
+def test_empty_supplied_fasta_is_not_treated_as_absent(monkeypatch) -> None:
+    rec = _wire(monkeypatch)
+    with pytest.raises(ValueError):
+        service.create_research_object(_base_payload(fasta_text=""))
+    assert rec.inserted is None
+
+
+@pytest.mark.parametrize("region", [[0, 2], [2, 1], [1], [True, 2], [1.5, 2], ["1", 2]])
+def test_api_contract_rejects_noninteger_or_invalid_regions(region) -> None:
+    with pytest.raises(ValidationError):
+        ResearchObjectCreate(**_base_payload(target_region=region))

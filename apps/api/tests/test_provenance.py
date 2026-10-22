@@ -1,6 +1,31 @@
 import pytest
 
 from app.modules.provenance import service
+from app.schemas.provenance import ProvenanceEvent
+
+
+@pytest.mark.parametrize("event_type,expected", [
+    ("input_received", "pending"), ("input_validated", "completed"),
+    ("intent_resolved", "running"), ("schema_validated", "completed"),
+    ("input_invalid", "failed"), ("analysis_failed", "failed"),
+    ("schema_invalid", "failed"), ("simulation_executed", "completed"),
+    ("edit_scored", "completed"), ("results_packaged", "completed"),
+    ("scientific_tool_failed", "failed"), ("scientific_tool_completed", "completed"),
+    ("unrecognized_validated", "unknown"),
+])
+def test_provenance_api_provides_explicit_stage_status(monkeypatch, event_type, expected):
+    from fastapi.testclient import TestClient
+
+    from app.api.routes import provenance as routes
+    from app.main import app
+
+    row = dict(event_id="event", run_id="run", stage="extract", event_type=event_type,
+               message="synthetic", occurred_at="2026-10-22T00:00:00Z")
+    monkeypatch.setattr(routes, "list_provenance_events", lambda run_id: [row])
+    response = TestClient(app).get("/api/v1/runs/run/provenance")
+    assert response.status_code == 200
+    assert response.json()["items"][0]["stage_status"] == expected
+    assert ProvenanceEvent(**row).model_dump()["stage_status"] == expected
 
 
 class _Recorder:

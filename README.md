@@ -74,10 +74,11 @@ The frontend expects the backend at `http://127.0.0.1:8000` by default.
 
 ## Information Processor milestone
 
-The new backend intake module provides strict contracts, record-preserving FASTA
+The backend intake module provides strict contracts, record-preserving FASTA
 and pasted-sequence validation, declared DNA/RNA/protein handling, field origins,
-original-artifact checksums and incomplete research drafts. It remains separate
-from the current API and UI until the persistence/confirmation milestone.
+original-artifact checksums, locally persisted drafts and explicit confirmation
+APIs. The web intake still uses the legacy Supabase research-object flow;
+connecting the two paths is the next integration milestone.
 
 See [Information Processor contracts and validation](docs/information-processor.md)
 for supported input policies, limitations and the targeted test command.
@@ -87,3 +88,15 @@ read validation, exact supplied-FASTA REF checks, and a local command-line entry
 point. See [multi-format intake and usage](docs/multi-format-intake.md).
 This remains independent of API/UI persistence and does not add a desktop
 installer or a physical simulation engine.
+
+## Product delivery status
+
+The web app opens into a research workbench with shared Inputs/Runs navigation
+and a persistent light/dark appearance switch. Scientific summaries label
+heuristic scores and explanatory scenes explicitly.
+
+See [the combined delivery plan and audit](docs/remaining-delivery-plan.md) for
+verified module coverage, remaining work now assigned to Kavin, integration
+dependencies and acceptance checks. The roadmap includes unfinished enzyme
+mapping, review approvals, complete exports/rights and the desktop product;
+existing backend contracts and packaging previews do not imply those are complete.

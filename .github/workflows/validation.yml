@@ -1,0 +1,52 @@
+name: Application validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  javascript-dependencies:
+    name: JavaScript dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.9"
+      - run: bun install --frozen-lockfile
+      - run: bun audit --audit-level high
+  backend:
+    name: Backend lint and behavior tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.9"
+      - name: Install backend dependencies
+        run: |
+          python -m venv apps/api/.venv
+          apps/api/.venv/bin/python -m pip install -e 'apps/api[dev]'
+      - run: bun run check:api
+  frontend:
+    name: Frontend behavior, typecheck, lint and builds
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.3.9"
+      - run: bun install --frozen-lockfile
+      - run: bun test apps/web/lib
+      - run: bun run check:web
+      - run: bun run build

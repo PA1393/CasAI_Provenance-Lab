@@ -7,6 +7,7 @@ import {
 } from "@/lib/api/client";
 import { RunStatusBadge } from "@/components/runs/run-status-badge";
 import { RunTabs } from "@/components/runs/run-tabs";
+import { RunProgress } from "@/components/runs/run-progress";
 import { ErrorState } from "@/components/ui/error-state";
 import { Hash } from "@/components/ui/hash";
 import { Eyebrow } from "@/components/ui/eyebrow";
@@ -50,18 +51,20 @@ export default async function RunPage({ params }: Props) {
       : null;
 
   return (
-    <section className="px-8 pt-12 pb-12 max-w-5xl mx-auto">
+    <section className="mx-auto max-w-[92rem] px-4 pb-14 pt-7 sm:px-6 lg:px-8 lg:pt-9">
       <Link href="/runs" className="font-mono text-xs tracking-[0.2em] uppercase text-muted hover:text-accent transition-colors">
         ← ALL RUNS
       </Link>
 
       <div className="mt-6 flex items-center gap-3">
-        <Eyebrow>──── RUN</Eyebrow>
+        <Eyebrow>{run.status === "completed" ? "Results" : "Run progress"}</Eyebrow>
         <RunStatusBadge status={run.status} />
       </div>
 
       <h1 className="mt-3 font-serif-display text-3xl md:text-4xl">{run.prompt}</h1>
       <Hash value={run.run_id} length={16} className="mt-2 block" />
+
+      <RunProgress run={run} provenance={provenance} />
 
       <dl className="mt-8 grid grid-cols-2 gap-4 rounded-lg border border-border bg-bg-card p-6 sm:grid-cols-3">
         <div className="sm:col-span-2">

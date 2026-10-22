@@ -29,6 +29,7 @@ type Props = {
 };
 
 type Tab = "simulation" | "provenance" | "results" | "sources";
+const tabs: Tab[] = ["results", "simulation", "provenance", "sources"];
 
 function extractRagSources(provenance: ProvenanceEvent[]): RagSource[] {
   const simulateEvent = provenance.find((e) => e.stage === "simulate");
@@ -47,29 +48,42 @@ export function RunTabs({
   editedSequence,
   sequence,
 }: Props) {
-  const [active, setActive] = useState<Tab>("simulation");
+  const [active, setActive] = useState<Tab>("results");
   const ragSources = extractRagSources(provenance);
   const editGeometry = extractEditGeometry(provenance);
 
   return (
     <div>
-      <div className="flex gap-1 border-b border-border">
-        {(["simulation", "provenance", "results", "sources"] as Tab[]).map((tab) => (
+      <div role="tablist" aria-label="Run details" className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-bg-card">
+        {tabs.map((tab) => (
           <button
             key={tab}
+            id={`tab-${tab}`}
+            role="tab"
+            aria-selected={active === tab}
+            aria-controls={`panel-${tab}`}
+            tabIndex={active === tab ? 0 : -1}
             onClick={() => setActive(tab)}
-            className={`px-5 py-3 font-mono text-xs tracking-[0.2em] uppercase font-semibold transition-colors ${
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              event.preventDefault();
+              const index = tabs.indexOf(tab);
+              const next = event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[tabs.length - 1] : tabs[(index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+              setActive(next);
+              document.getElementById(`tab-${next}`)?.focus();
+            }}
+            className={`whitespace-nowrap border-b-2 px-5 py-4 text-sm font-semibold transition-colors ${
               active === tab
-                ? "text-accent border-b-2 border-accent -mb-px"
-                : "text-muted hover:text-text"
+                ? "border-accent bg-accent-soft/50 text-accent"
+                : "border-transparent text-text-secondary hover:text-text"
             }`}
           >
-            {tab === "sources" ? `sources${ragSources.length > 0 ? ` (${ragSources.length})` : ""}` : tab}
+            {tab === "results" ? "Summary" : tab === "simulation" ? "3D interaction" : tab === "provenance" ? "Provenance" : `Sources${ragSources.length > 0 ? ` (${ragSources.length})` : ""}`}
           </button>
         ))}
       </div>
 
-      <div className="mt-6">
+      <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`} className="mt-6">
         {active === "simulation" && (
           <RunSimulation
             pdbId={pdbId}
@@ -111,6 +125,8 @@ function ResultsTab({ results }: { results: Result[] }) {
     );
   }
   return (
+    <div>
+    <p className="mb-5 rounded-lg border border-border bg-accent-soft/40 px-4 py-3 text-sm text-text-secondary">Concept-demo computational results. Scores are heuristics, not measured editing efficiency or experimental validation.</p>
     <ul className="flex flex-col gap-4">
       {results.map((result) => (
         <li
@@ -126,20 +142,20 @@ function ResultsTab({ results }: { results: Result[] }) {
               {result.on_target_score != null && (
                 <div>
                   <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
-                    ON-TARGET EFFICIENCY
+                    On-target heuristic score
                   </p>
                   <p className="mt-1 font-serif-display italic text-2xl text-accent">
-                    {(result.on_target_score * 100).toFixed(0)}%
+                    {(result.on_target_score * 100).toFixed(0)} <span className="text-sm text-muted">/ 100</span>
                   </p>
                 </div>
               )}
               {result.off_target_score != null && (
                 <div>
                   <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-semibold">
-                    OFF-TARGET RISK
+                    Off-target heuristic score
                   </p>
                   <p className="mt-1 font-serif-display italic text-2xl text-text">
-                    {(result.off_target_score * 100).toFixed(0)}%
+                    {(result.off_target_score * 100).toFixed(0)} <span className="text-sm text-muted">/ 100</span>
                   </p>
                 </div>
               )}
@@ -173,5 +189,6 @@ function ResultsTab({ results }: { results: Result[] }) {
         </li>
       ))}
     </ul>
+    </div>
   );
 }

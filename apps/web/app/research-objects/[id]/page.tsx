@@ -35,14 +35,14 @@ export default async function ResearchObjectPage({ params }: Props) {
   }
 
   return (
-    <section className="px-8 pt-12 pb-12 max-w-4xl mx-auto">
+    <section className="mx-auto max-w-[92rem] px-4 pb-14 pt-7 sm:px-6 lg:px-8 lg:pt-9">
       <Link href="/research-objects" className="font-mono text-xs tracking-[0.2em] uppercase text-muted hover:text-accent transition-colors">
-        ← RESEARCH OBJECTS
+        ← RESEARCH INPUTS
       </Link>
 
-      <div className="mt-6 flex items-start justify-between gap-6">
+      <div className="mt-6 flex flex-col items-start justify-between gap-6 sm:flex-row">
         <div>
-          <Eyebrow>──── RESEARCH OBJECT</Eyebrow>
+          <Eyebrow>Research input</Eyebrow>
           <h1 className="mt-3 font-serif-display text-3xl md:text-4xl">
             {researchObject.name}
           </h1>

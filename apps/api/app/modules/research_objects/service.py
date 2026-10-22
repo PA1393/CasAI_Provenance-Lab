@@ -1,28 +1,29 @@
 # Research objects service — all DB access for this domain lives here.
-# Mock field generation is isolated to _build_mock_fields(); nothing else generates fake data.
+# Unavailable measurements remain null until a real adapter provides them.
 
 from __future__ import annotations
 
 import hashlib
+import json
 
 from app.db import get_supabase
 from app.modules.research_objects.fasta import parse_fasta
 
 
-def _build_mock_fields(pdb_id: str) -> dict:
-    """Generate placeholder computed fields until real parsing/fetch is implemented."""
+def _unmeasured_fields(data: dict) -> dict:
+    """Keep unavailable measurements explicit instead of generating placeholders."""
+    identity = json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
     return {
-        "mmcif_fetched_from": f"https://files.rcsb.org/download/{pdb_id}.cif",
-        "mmcif_hash": "mock:mmcif_hash_placeholder",
-        "sequence_length": 1500,
-        "gc_content": 0.52,
-        "avg_phred_score": 35.0,
-        "reads_passing_qc": 980000,
-        "reads_total": 1000000,
-        "ro_hash": f"sha256:mock_ro_hash_{pdb_id.lower()}",
-        "status": "ready",
-        "fasta_preview": "ATGCGATCGGTACTAGTACGATCGGTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGC...",
-        "target_region": [720, 742],
+        "mmcif_fetched_from": None,
+        "mmcif_hash": None,
+        "sequence_length": None,
+        "gc_content": None,
+        "avg_phred_score": None,
+        "reads_passing_qc": None,
+        "reads_total": None,
+        "ro_hash": f"sha256:{hashlib.sha256(identity).hexdigest()}",
+        "status": "draft",
+        "fasta_preview": None,
     }
 
 
@@ -63,9 +64,8 @@ def create_research_object(data: dict) -> dict:
 
     `fasta_text` is upload input rather than a column: it is consumed here and
     replaced by the fields it determines (sequence, sequence_length, gc_content,
-    fasta_preview, ro_hash), which take precedence over the placeholders. Fields
-    a FASTA cannot determine — structure refs, QC read counts — stay mocked until
-    those pipelines exist.
+    fasta_preview, ro_hash). Unmeasured structure and read-QC fields remain null.
+    Supplied target coordinates are retained and validated as 1-based inclusive.
 
     Without `fasta_text` no sequence is stored, and the base-edit pipeline will
     halt at `input` for this research object rather than invent one.
@@ -73,11 +73,25 @@ def create_research_object(data: dict) -> dict:
     Raises ValueError if `fasta_text` is present but malformed.
     """
     payload = {k: v for k, v in data.items() if k != "fasta_text"}
-    payload.update(_build_mock_fields(data["pdb_id"]))
+    payload.update(_unmeasured_fields(payload))
 
     fasta_text = data.get("fasta_text")
-    if fasta_text:
+    if fasta_text is not None:
         payload.update(_fields_from_fasta(fasta_text))
+        payload["status"] = "ready"
+
+    region = payload.get("target_region")
+    if region is not None:
+        if (
+            len(region) != 2
+            or any(type(value) is not int for value in region)
+            or region[0] < 1
+            or region[1] < region[0]
+        ):
+            raise ValueError("Target region must be two 1-based inclusive integers")
+        length = payload.get("sequence_length")
+        if length is not None and region[1] > length:
+            raise ValueError("Target region extends beyond the supplied sequence")
 
     client = get_supabase()
     response = client.table("research_objects").insert(payload).execute()

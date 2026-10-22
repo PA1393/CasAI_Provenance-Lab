@@ -2,43 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Warm clinical palette ────────────────────────────────────────────────
-   Bone rather than white, warm ink rather than black, and a deep forest green
-   instead of an electric one. Greys carry a little warmth so nothing on the
-   page reads as cold screen-grey.
-
-   Values are space-separated RGB triplets because tailwind.config.ts wraps
-   each one in rgb(... / <alpha-value>), which is what keeps `/40` opacity
-   modifiers working. */
 :root {
   color-scheme: light;
 
-  --bg: 250 247 242;
+  --bg: 249 251 253;
   --bg-card: 255 255 255;
-  --bg-sunken: 243 238 230;
-  --border: 231 223 211;
-  --border-strong: 213 202 186;
-  --text: 26 23 20;
-  --text-secondary: 92 85 74;
-  --muted: 133 124 110;
+  --bg-sunken: 242 245 249;
+  --border: 223 230 239;
+  --border-strong: 197 209 225;
+  --text: 13 27 60;
+  --text-secondary: 75 91 121;
+  --muted: 100 116 142;
 
-  --accent: 20 104 74;
-  --accent-bright: 26 133 94;
-  --accent-soft: 232 241 235;
-  --accent-amber: 176 112 52;
-  --accent-red: 168 68 46;
+  --accent: 13 100 77;
+  --accent-bright: 16 120 92;
+  --accent-soft: 229 245 238;
+  --accent-amber: 148 88 18;
+  --accent-red: 181 53 53;
 
   --font-fallback: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
     sans-serif;
   --font-mono-fallback: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* ── Instrument surface ───────────────────────────────────────────────────
-   Applied to the simulation console. Redefining the variables here re-skins
-   everything inside — the sequence track, the canvases, their labels — to the
-   dark green-on-black readout the pipeline visuals were designed for, while
-   the rest of the application stays warm and clinical. No component needs to
-   know which context it is rendering into. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: 11 18 32;
+  --bg-card: 18 29 48;
+  --bg-sunken: 22 35 58;
+  --border: 40 54 77;
+  --border-strong: 67 86 112;
+  --text: 243 247 250;
+  --text-secondary: 185 199 218;
+  --muted: 158 176 201;
+  --accent: 47 196 149;
+  --accent-bright: 83 218 175;
+  --accent-soft: 15 55 51;
+  --accent-amber: 242 190 104;
+  --accent-red: 255 143 143;
+}
+
 .instrument {
   color-scheme: dark;
 
@@ -81,21 +84,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* A barely-there warm wash so a large bone field has some depth to it. */
 body {
-  background-image:
-    radial-gradient(
-      1200px 700px at 15% -10%,
-      rgb(20 104 74 / 0.05),
-      transparent 65%
-    ),
-    radial-gradient(
-      900px 600px at 100% 0%,
-      rgb(176 112 52 / 0.05),
-      transparent 60%
-    );
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-image: none;
+}
+
+@media (min-width: 1024px) {
+  main {
+    background-image: none;
+  }
 }
 
 a {
@@ -103,12 +99,6 @@ a {
   text-decoration: none;
 }
 
-/* ── Typography ───────────────────────────────────────────────────────────
-   Kept under the original class name so every existing heading picks up the
-   treatment without a component edit. Now a warm serif: unlike the previous
-   geometric sans, this one ships a true italic, so the accented fragments in
-   the headings render as real editorial italics rather than a synthesised
-   slant — which is why there is no font-style override here any more. */
 .font-serif-display {
   font-family: var(--font-display), Georgia, serif;
   font-weight: 600;
@@ -123,7 +113,6 @@ a {
   font-size: 0.75rem;
 }
 
-/* Fixed-width figures so scores and bp coordinates don't jitter as they change. */
 .font-mono,
 code,
 pre {
@@ -131,11 +120,6 @@ pre {
   font-feature-settings: "tnum";
 }
 
-/* ── Card elevation ───────────────────────────────────────────────────────
-   Every card surface in the app is `border border-border bg-bg-card`. Giving
-   that utility a warm shadow here lifts every card at once, rather than
-   touching two dozen components. Cards inside the instrument console stay
-   flat — a shadow over near-black just reads as mud. */
 .bg-bg-card {
   box-shadow:
     0 1px 2px rgb(41 34 26 / 0.04),

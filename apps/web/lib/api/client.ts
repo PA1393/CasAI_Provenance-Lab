@@ -59,6 +59,7 @@ export type ProvenanceEvent = {
   run_id: string;
   stage: string;
   event_type: string;
+  stage_status?: "pending" | "running" | "completed" | "failed" | "unknown";
   message: string;
   payload: Record<string, unknown> | null;
   duration_ms: number | null;
@@ -85,7 +86,8 @@ function apiUrl(path: string): string {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(path), { cache: "no-store", ...init });
+  const signal = (init?.method ?? "GET") === "GET" ? AbortSignal.timeout(15_000) : undefined;
+  const response = await fetch(apiUrl(path), { cache: "no-store", signal, ...init });
   if (!response.ok) {
     throw new Error(`API error ${response.status}: ${path}`);
   }

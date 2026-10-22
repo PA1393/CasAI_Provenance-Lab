@@ -2,7 +2,6 @@ import { getRuns } from "@/lib/api/client";
 import { RunCard } from "@/components/runs/run-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { Eyebrow } from "@/components/ui/eyebrow";
 
 export default async function RunsPage() {
   let runs: Awaited<ReturnType<typeof getRuns>> = [];
@@ -15,23 +14,22 @@ export default async function RunsPage() {
   }
 
   return (
-    <section className="px-8 pt-12 pb-12 max-w-7xl mx-auto">
-      <Eyebrow>──── LAYER 3 + LAYER 4 / RUNS</Eyebrow>
-      <h1 className="mt-4 font-serif-display text-4xl md:text-5xl">
-        Pipeline <span className="italic text-accent">Runs.</span>
+    <section className="mx-auto max-w-[92rem] px-4 pb-14 pt-7 sm:px-6 lg:px-8 lg:pt-9">
+      <p className="text-sm font-semibold text-accent">Computational runs</p>
+      <h1 className="mt-1 font-serif-display text-3xl text-text sm:text-4xl">
+        Track every analysis
       </h1>
-      <p className="mt-3 text-muted max-w-2xl">
-        Each run executes a research object through the five-stage pipeline. Every step is
-        recorded with timestamps and hashes.
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
+        See what is queued, running, completed, or needs attention. Open a run for its detailed stages and provenance.
       </p>
 
-      <div className="mt-10">
+      <div className="mt-7">
         {fetchError ? (
           <ErrorState message="Could not load runs. Is the backend running?" />
         ) : runs.length === 0 ? (
           <EmptyState
             message="No runs yet. Start one from a research object."
-            actionLabel="View Research Objects"
+            actionLabel="View research inputs"
             actionHref="/research-objects"
           />
         ) : (

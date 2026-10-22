@@ -1,0 +1,68 @@
+# Guide and target mapping
+
+The `guide_mapping` module provides an offline, deterministic first layer for
+reviewable CBE and ABE guide discovery. It does not call an LLM, external genome
+service or scientific engine.
+
+`GuideMappingRequest` requires an uppercase DNA/IUPAC target, immutable confirmed
+research-object version ID, source record ID, editor, PAM, guide length,
+1-based-inclusive edit window and optional exact desired substitutions. Desired
+reference bases must match the supplied target. Duplicate or out-of-range desired
+positions are rejected.
+
+The current mapper accepts up to 5,000 target bases and 64 candidates to bound
+local-specificity ranking and stored/returned payloads. Exceeding either limit
+produces `target_length_limit` or `candidate_count_limit` with no candidates and
+an empty ranking, not a silently truncated result. Supply a narrower target or
+more restrictive PAM and remap. These limits are not a genome-wide search engine;
+older persisted maps above the candidate ceiling fail validation when reopened.
+
+`map_guides(...)` enumerates both target orientations. A candidate is emitted
+only when:
+
+- the complete protospacer and PAM fit inside the target;
+- the PAM matches the declared IUPAC pattern immediately 3-prime of the oriented
+  protospacer;
+- the protospacer contains only unambiguous A/C/G/T bases; and
+- at least one editor-compatible base is inside the declared window.
+
+All target, protospacer, PAM and edit coordinates are reported against the
+original forward target using 1-based-inclusive coordinates. Reverse-strand CBE
+is represented as G-to-A on the forward target; reverse-strand ABE is represented
+as T-to-C. Each candidate separates requested edits from bystander edits and
+states whether it covers every requested position. Incompatible desired changes,
+unmapped desired positions and absence of a compatible guide remain explicit
+issues.
+
+Guide candidates and complete maps are immutable, content-addressed contracts.
+They remain `status=draft`, `executable=false` and `claim_type=heuristic`.
+
+`rank_guides(...)` adds a separate content-addressed heuristic ranking. It keeps
+desired-edit coverage, bystander avoidance, edit-window centrality, guide
+composition and within-target specificity as individually labeled components.
+Candidates are ordered lexicographically by those declared components; no opaque
+aggregate score is emitted. The local specificity component is PAM-agnostic and
+is explicitly not a genome-wide off-target search. The guide-composition
+component is not a trained efficacy model or experimental measurement.
+
+Mapping and ranking do not claim guide optimality, genome-wide specificity,
+biological effect, allele selectivity, delivery feasibility, safety or
+experimental validation. External off-target adapters, approval/versioning and
+API exposure belong to later reviewable increments.
+
+`LocalWorkspace` stores maps and rankings as immutable JSON objects. Before a map
+is written or reopened, the workspace verifies that its target checksum, length
+and record ID match one exact DNA record in the referenced confirmed version.
+Rankings must reference a stored map and exactly the same candidate identities.
+
+`POST /api/v1/guide-maps` accepts only a confirmed research-object version and
+record identifier plus mapping parameters. The backend retrieves the exact DNA
+record, maps and ranks candidates, stores both immutable objects, and returns a
+bounded summary without the full target sequence. Missing versions, absent
+records, non-DNA molecules and desired-reference mismatches are rejected.
+
+Run the focused tests from `apps/api`:
+
+```bash
+python -m pytest -q tests/test_guide_mapping.py
+```

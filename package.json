@@ -18,6 +18,9 @@
     "test:api": "bun scripts/api-python.ts -m pytest -c pyproject.toml tests",
     "typecheck": "turbo run typecheck"
   },
+  "overrides": {
+    "postcss": "8.5.31"
+  },
   "devDependencies": {
     "turbo": "^2.5.2",
     "typescript": "^5.9.3"
