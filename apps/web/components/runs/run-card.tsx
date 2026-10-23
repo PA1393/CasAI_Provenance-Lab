@@ -15,7 +15,7 @@ export function RunCard({ run }: Props) {
     >
       <div className="flex items-start justify-between gap-3">
         <p className="truncate font-mono text-xs text-muted">{run_id}</p>
-        <RunStatusBadge status={status} />
+        <RunStatusBadge status={status} overview />
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-2">
         <div className="col-span-2">

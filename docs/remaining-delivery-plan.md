@@ -153,6 +153,28 @@ example and that no structure download starts until explicitly requested.
 
 ## Next implementation sequence and acceptance criteria
 
+### Local integration progress (2026-10-23; not full milestone completion)
+
+- Implemented and locally tested the Information Processor panel with six draft
+  methods, resume, warning/field-origin review and immutable confirmation.
+  FASTQ/VCF text evidence inspection is connected separately. Multi-part/gzip,
+  paired-file UI, durable hosted workspace storage and confirmed-version binding
+  into legacy run preparation remain open.
+- Added a v2 local execution revision journal with unique invocation/session and
+  attempt identities, parent validation, retry/cancel history and integrity checks.
+  It is backend-only, not a public approved-execution service or real engine run.
+- Added a terminal-run JSON snapshot export, per-document checksums, client
+  verification and scoped native Save As. Full originals/plan/scene/PDF packaging
+  and enforceable rights/revocation records remain open; unknown rights do not
+  grant commercial permission.
+- Fixed the desktop public reference renderer and added the original interactive
+  sequence schematic plus expandable reference popup. A manifest-driven mapped
+  complex/trajectory viewer remains separate and unfinished.
+- New backend endpoints require deployment; no pushes, deployments or remote CI
+  dispatch are implied by local implementation. Real engine selection/reference
+  licensing, trusted approval, cross-platform launch testing and release signing
+  still require explicit configuration and external evidence.
+
 ### 1. Complete intake integration
 
 Files: `apps/web/lib/api/client.ts`, `components/research-objects/`, intake routes,

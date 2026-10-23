@@ -140,3 +140,99 @@ TypeScript/Vite build passed. The Mac package rebuilt and its ad-hoc signature
 verified. The three native boundary tests passed for the desktop increment;
 native Rust source is unchanged by this layout change. The dependency audit
 still reports the known high-severity braces advisory; it is not audit-clean.
+
+## Molecular-viewer correction and original CasAI scene
+
+The original published desktop build could fail while evaluating Mol*/Immutable
+namespace and prototype methods under Tauri's frozen Object.prototype. The
+desktop build now transforms those vetted dependency assignments into compatible
+own-property definitions. The global prototype freeze, CSP and native request
+boundaries remain enabled. The transform also runs during dependency optimization;
+tests cover actual installed library source, assignment values and frozen globals.
+
+The public viewer has a panel-local error boundary, initialization/representation
+checks and a diagnostic/retry path. It supports an expanded native HTML dialog,
+Escape/Close, return focus, camera reset, protein and nucleic-acid visibility,
+optional camera rotation and opt-in illustrative phase styling. Neither rotation
+nor colors are a calculated molecular trajectory, and deposited coordinates are
+not edited to claim a predicted base conversion.
+
+CasAI's original sequence explorer renders a bounded 64-base window using its
+own 3D schematic geometry and perspective projection. Orbit, zoom, keyboard
+camera controls, base selection, windowing and reset operate on the actual
+supplied sequence. Changed bases are identified by comparison to a same-length
+stored output; missing/mismatched output never invents an edit. This is NOT an
+atomic model, force field, docking engine, enzyme pathway or molecular dynamics.
+
+The run Summary displays the persisted deterministic edit summary. Provenance
+receives run status so a completed terminal summary is not shown as perpetually
+active. No new AI-generated biological interpretation is introduced. Overview
+failure badges become neutral Review run links; run-detail status and the audit
+trail still disclose failures. No historical records are rewritten.
+
+Public reference examples were checked against the source catalog:
+[4UN3](https://www.rcsb.org/structure/4UN3),
+[5F9R](https://www.rcsb.org/structure/5F9R) and
+[6VPC](https://www.rcsb.org/structure/6VPC). These are separate references, not
+structures matched or validated against the user's sequence.
+
+This correction does not complete all B-blocks; the follow-up below adds intake,
+export and local execution-journal plumbing without claiming full delivery.
+
+## Demo integration follow-up (2026-10-23)
+
+The Add input screen now includes an Information Processor alongside the legacy
+guided FASTA form. It connects the six existing input methods to stored-draft,
+summary/resume and immutable-confirmation APIs. It displays record identities,
+checksums, field origins, warnings and missing-field actions, and requires review
+acknowledgment plus a non-authenticated attribution label. Only a draft ID is
+saved in browser preferences; sequence payloads are not placed in localStorage.
+Protein/RNA declarations and explicit RNA-to-DNA conversion remain distinct.
+Accession, gene and objective requests stay non-executable when unresolved;
+no automatic biological reference downloads or invented sequence are added.
+
+FASTQ/VCF evidence uses a new bounded JSON text-inspection endpoint compatible
+with the scoped native transport. Inputs are uncompressed UTF-8; the existing
+multipart API remains the path for gzip and paired files, which this UI does not
+yet expose. Phred+33 requires an explicit user declaration. VCF can optionally
+receive a supplied reference for REF checking. Evidence inspection returns
+metadata only, does not persist those datasets, and cannot launch sequence runs.
+Confirmed workspace versions are not yet bridged into the legacy Supabase run
+workflow. Hosted serverless workspace persistence is still a deployment concern.
+
+Terminal runs have Export recorded data above the tabs. The API builds an
+allowlisted JSON snapshot containing input, run, results and provenance documents,
+their exact UTF-8 byte lengths and SHA-256 digests. The client verifies every file
+before requesting a download. The packaged client opens native Save As and uses
+exclusive creation, never a JavaScript-supplied absolute path or an overwrite.
+Cancellation writes nothing. This is NOT a complete immutable archive, PDF report,
+source-rights verification or commercial reuse license. Originals, approved plans,
+mapped scene assets and trajectory artifacts are explicitly absent. Historical
+demo data may include old placeholders; checksum validation is not scientific validation.
+Exports require the new backend route to be deployed before use; no deployment
+or live export was performed in this increment. Local API/byte-integrity tests
+passed; native Save As has compiled but has not completed an end-to-end save test.
+
+`simulation/durable.py` adds a v2 backend-only local execution journal. A fresh
+server nonce distinguishes invocations, attempts bind to session/retry identity,
+and immutable checksummed revisions preserve outcomes/cancellation across reopen.
+Transitions validate their stored parent. V1 identity semantics are unchanged.
+There is no mutable latest pointer, distributed job scheduler, public executable
+session route or actor-scoped idempotency implementation. Caller attribution is
+not authority. Trusted approval, approved mapping integration and installed real
+scientific engines must precede exposing executable sessions.
+
+Native macOS inspection verified deposited 4UN3 rendering (13,629 structure
+elements), expanded popup, protein visibility, reset camera and Escape/focus return.
+The renderer now flushes deferred canvas commits before checking readiness;
+otherwise WKWebView can falsely report an empty representation while its
+animation loop has not committed. A final package rebuild includes the new UI.
+Screen evidence was displayed inline; saving a screenshot file was blocked by
+the UI tool's filesystem restrictions, and no video recording tool was available.
+
+Validation: backend lint and 587 tests; 28 web behavior tests; 16 desktop tests;
+web/desktop typecheck and builds; four native Rust tests. Repeat final builds
+after changes. Windows/Linux packaging and interactive launch checks for this
+increment have not run; the matrix remains configured but no CI was dispatched.
+macOS ad-hoc packaging is not public signing/notarization. The known braces
+advisory is not suppressed. See remaining-delivery-plan.md for unfinished work.

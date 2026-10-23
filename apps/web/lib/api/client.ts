@@ -1,4 +1,6 @@
 import { fetchApi, getPublicEnv } from "@casai/env";
+import type { DemoExport } from "@/lib/demo-export";
+import type { StoredDraft, Confirmation, DatasetInspection } from "@/lib/intake";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +96,24 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export function storeIntakeDraft(body: Record<string, unknown>): Promise<StoredDraft> {
+  return apiFetch("/api/v1/intake/research-drafts", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+export function resumeIntakeDraft(id: string): Promise<StoredDraft> {
+  if (!/^sha256:[0-9a-f]{64}$/.test(id)) throw new Error("Invalid draft identifier");
+  return apiFetch(`/api/v1/intake/research-drafts/${id}`);
+}
+export function confirmIntakeDraft(id: string, body: Record<string, unknown>): Promise<Confirmation> {
+  if (!/^sha256:[0-9a-f]{64}$/.test(id)) throw new Error("Invalid draft identifier");
+  return apiFetch(`/api/v1/intake/research-drafts/${id}/confirm`, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+export function inspectDatasetText(body: Record<string, unknown>): Promise<DatasetInspection> {
+  return apiFetch("/api/v1/intake/datasets/inspect-text", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
 // ─── Health ───────────────────────────────────────────────────────────────────
 
 export async function getHealth(): Promise<{ status: string }> {
@@ -128,6 +148,10 @@ export async function getRuns(): Promise<Run[]> {
 
 export async function getRun(runId: string): Promise<Run> {
   return apiFetch<Run>(`/api/v1/runs/${runId}`);
+}
+
+export async function getRunExport(runId: string): Promise<DemoExport> {
+  return apiFetch(`/api/v1/runs/${encodeURIComponent(runId)}/export`);
 }
 
 export async function createRun(data: RunCreate): Promise<Run> {

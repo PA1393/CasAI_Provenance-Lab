@@ -75,6 +75,12 @@ export async function fetchApi(url: string, init?: RequestInit): Promise<Respons
   return new Response(result.body, { status: result.status, headers: { "content-type": "application/json" } });
 }
 
+export async function saveExportText(filename: string, content: string): Promise<"saved" | "cancelled"> {
+  if (!isTauri()) throw new Error("Native export is available in the packaged desktop app.");
+  const saved = await invoke<boolean>("save_export", { filename, content });
+  return saved ? "saved" : "cancelled";
+}
+
 export async function checkConnection(baseUrl: string): Promise<"ready" | "outdated"> {
   const generation = ++checkGeneration;
   writesEnabled = false;
