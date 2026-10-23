@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ConfirmedInputActions } from "./confirmed-input-actions";
 import { confirmIntakeDraft, inspectDatasetText, resumeIntakeDraft, storeIntakeDraft } from "@/lib/api/client";
 import { confirmationBody, INPUT_BYTE_LIMIT, validateTextInput, type IntakeMethod, type StoredDraft, type DatasetInspection } from "@/lib/intake";
 
@@ -89,10 +90,11 @@ export function ProcessorPanel() {
       {dataset && <p>{dataset.draft.record_count} {dataset.draft.data_role} records · Reference checked: {dataset.draft.reference_checked ? "yes" : "no"}. Inspection only; not stored or executable.</p>}
       {report.warnings.map(warning => <p key={warning.code}>{warning.code}: {warning.message}</p>)}
       {report.missing_fields.map(gap => <p key={gap.field}>{gap.requirement}: {gap.field} — {gap.reason} {gap.action}</p>)}
-      {draft && <div className="space-y-3 border-t border-border pt-3"><label className="block">Reviewer attribution (not authentication)<input className={field} value={actor} onChange={event => { setActor(event.target.value); setVersion(""); }} maxLength={200} /></label><label className="block"><input type="checkbox" checked={ack} onChange={event => setAck(event.target.checked)} /> I reviewed the records and acknowledge the warnings above.</label><button className={button} disabled={busy || !draft.draft.ready_for_confirmation || !ack || !!version} onClick={() => void action(async () => {
+      {draft && <div className="space-y-3 border-t border-border pt-3"><label className="block">Reviewer attribution (not authentication)<input disabled={busy} className={field} value={actor} onChange={event => { setActor(event.target.value); setVersion(""); }} maxLength={200} /></label><label className="block"><input disabled={busy} type="checkbox" checked={ack} onChange={event => setAck(event.target.checked)} /> I reviewed the records and acknowledge the warnings above.</label><button className={button} disabled={busy || !draft.draft.ready_for_confirmation || !ack || !!version} onClick={() => void action(async () => {
         const confirmed = await confirmIntakeDraft(draft.draft_id, confirmationBody(draft.draft, actor, ack)); setVersion(confirmed.version_id);
-      })}>Confirm immutable version</button><p>Confirmation does not automatically submit a legacy run. The guided FASTA workflow above remains separate.</p></div>}
+      })}>Confirm immutable version</button><p>After confirmation, download your normalized records or explicitly prepare a supported DNA record for run setup.</p></div>}
       {version && <p role="status" className="break-all">Confirmed version: {version}</p>}
+      {version && draft && <ConfirmedInputActions key={version} versionId={version} records={draft.draft.records} busy={busy} perform={action} onNotice={setNotice} />}
     </div>}
     {notice && <p role="status" className="mt-3 text-sm text-text-secondary">{notice}</p>}
     <p className="mt-4 text-xs text-muted">Inspect/Store sends the supplied content to the configured backend. Use only non-sensitive demo data. Backend local workspace storage must be persistent to resume after server restarts.</p>

@@ -21,6 +21,7 @@ from app.modules.information_processor.contracts import (
     ProcessingNotice,
     ResearchDraft,
 )
+from app.modules.information_processor.handoff import export_confirmed_fasta, prepare_run_input
 from app.modules.information_processor.intake import (
     FastqInspectionRequest,
     IntakeInspection,
@@ -48,6 +49,7 @@ from app.schemas.intake import (
     ArtifactSummary,
     ConfirmationBody,
     ConfirmedResearchSummary,
+    ConfirmedRunInputBody,
     DatasetDraftSummary,
     DatasetTextBody,
     DetectionBody,
@@ -61,6 +63,7 @@ from app.schemas.intake import (
     SequenceRecordSummary,
     StoredSequenceDraftResponse,
 )
+from app.schemas.research_objects import ResearchObject
 
 router = APIRouter(prefix="/intake", tags=["intake"])
 _TOO_LARGE = {
@@ -72,6 +75,47 @@ _TOO_LARGE = {
     "too_many_records",
 }
 _SHA256_PATH = r"^sha256:[0-9a-f]{64}$"
+
+
+@router.get("/confirmed-versions/{version_id}/fasta")
+def download_confirmed_fasta(
+    version_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> dict:
+    try:
+        return export_confirmed_fasta(workspace.load_confirmed_version(version_id))
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Confirmed version not found") from exc
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=409, detail="Confirmed input failed integrity checks"
+        ) from exc
+
+
+@router.post("/confirmed-versions/{version_id}/research-objects", response_model=ResearchObject)
+def prepare_confirmed_run_input(
+    body: ConfirmedRunInputBody,
+    version_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> ResearchObject:
+    try:
+        row = prepare_run_input(
+            workspace, version_id, body.record_id, body.name.strip(),
+        )
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Confirmed version not found") from exc
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=409, detail="Confirmed input failed integrity checks"
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=(
+            "Run preparation unavailable. Check database migration 007 and workspace persistence; "
+            "no run was submitted."
+        )) from exc
+    return ResearchObject(**row)
 
 
 def _artifact_summary(artifact) -> ArtifactSummary:

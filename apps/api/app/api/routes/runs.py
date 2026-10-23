@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.modules.runs.export import build_run_export
-from app.modules.runs.service import create_run, get_run, list_runs
+from app.modules.runs.service import ConfirmedSourceError, create_run, get_run, list_runs
 from app.schemas.runs import Run, RunCreate, RunsResponse
 
 router = APIRouter(tags=["runs"])
@@ -33,8 +33,11 @@ def get_run_by_id(run_id: str) -> Run:
 
 @router.post("/runs", response_model=Run, status_code=201)
 def post_run(body: RunCreate) -> Run:
-    run = create_run(
-        research_object_id=body.research_object_id,
-        prompt=body.prompt,
-    )
+    try:
+        run = create_run(
+            research_object_id=body.research_object_id,
+            prompt=body.prompt,
+        )
+    except ConfirmedSourceError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return Run(**run)

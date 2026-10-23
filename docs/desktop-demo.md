@@ -236,3 +236,84 @@ after changes. Windows/Linux packaging and interactive launch checks for this
 increment have not run; the matrix remains configured but no CI was dispatched.
 macOS ad-hoc packaging is not public signing/notarization. The known braces
 advisory is not suppressed. See remaining-delivery-plan.md for unfinished work.
+
+## Confirmed input actions: final demo handoff (2026-10-23)
+
+After sequence confirmation, the Information Processor now exposes:
+
+- **Download normalized FASTA**: all confirmed records remain separate with their
+  original IDs, normalized sequence, molecule declaration, confirmed-version ID,
+  original-artifact checksum and per-record checksum in the headers. The response
+  also identifies claim type/warnings and the complete download checksum. The
+  client verifies version, filename, byte length and SHA-256 before saving. This
+  is a normalized derivative, never a replacement for original uploaded bytes.
+- **Use in a run**: choose exactly one confirmed record, prepare a linked legacy
+  research input, then open the existing run form. Preparation does not execute a
+  run or call an AI agent. The bridge supports unambiguous A/C/G/T DNA up to 5,000
+  bases; RNA requires explicit conversion in a new confirmed draft. Protein,
+  unresolved and ambiguous inputs are not silently converted. FASTQ/VCF inspection
+  remains evidence-only and does not acquire these sequence-confirmation actions.
+
+The server derives the prepared input from its stored confirmed snapshot, not a
+client-provided sequence. Deterministic per-version/per-record UUIDs and a unique
+database index make repeat preparation reopen the first input without rewriting
+it. Only the first preparation's display name is retained. Every linked run
+checks the sequence/hash against the stored version before inserting a run, then
+records version and record IDs in its input provenance. If the workspace version
+is missing or mismatched, the run is blocked rather than silently downgraded to
+legacy unconfirmed input. Existing unlinked legacy inputs remain compatible.
+
+Native FASTA saving uses a separate bounded command and native Save As. The
+renderer cannot choose an arbitrary absolute destination; existing files are not
+overwritten. Browser downloads use the standard download flow. Both paths keep
+biological accuracy and rights limitations explicit.
+
+### Deployment order and remaining checks
+
+1. Apply `apps/api/migrations/007_confirmed_input_link.sql` once in Supabase.
+   It adds nullable source-link fields plus a paired-field constraint and unique
+   index. It does not rewrite historical research objects. It was NOT applied
+   to the live database during implementation.
+2. Configure persistent intake workspace storage accessible to both confirmation
+   and run workers. Ephemeral Vercel filesystems are not a durable research store;
+   a shared durable backend is required for reliable cross-instance run handoff.
+3. Deploy the new backend routes and rebuild/install the desktop client. Check
+   the two new actions against that deployment before presenting a live demo.
+
+Validation: backend lint and 597 tests; 30 web behavior tests; 16 desktop tests;
+five native Rust tests; web/desktop typecheck, lint/build and ad-hoc Mac package
+signature verification. The fallback read-only security review covered the
+combined increment and found no actionable new findings. The specialized
+security-review tool was unavailable; this is not an independent security audit.
+Known no-auth/attribution/workspace limitations remain unchanged.
+
+A real browser rehearsal against an isolated localhost API stored and confirmed
+the versioned synthetic demo, downloaded a 327-byte FASTA to Downloads, and
+verified the exact sequence and source headers. Test-only workspace files were
+kept separate from researcher data. No live Supabase writes or run submissions
+were made. API tests exercise the handoff with a fake DB, exact-record selection,
+repeat preparation, rejected source changes, unsupported molecule
+types, explicit RNA conversion and sanitized database errors. Native Save As and
+Windows/Linux launch remain unverified end-to-end for this increment. Screenshots
+were displayed inline; local screenshot-file saving was blocked by UI tool
+permissions. No screen recording tool was available.
+
+This closes the requested sequence-processing-to-download/run-setup connection
+in code. It does not complete real molecular dynamics, approved scientific engine
+execution, full immutable PDF/archive/rights workflows, private-data security or
+public cross-platform signing. Code ready for review/push is not a claim that
+those deployment/release milestones have been completed.
+
+The final dependency audit identified GHSA-mrhx-c7xc-m3w5 in Zod <4.6.6. Both
+workspace dependencies are now pinned to 4.6.6 and bun.lock was refreshed without
+running dependency scripts. A URL-validation regression covers the existing
+default/explicit/invalid URL behavior. A subsequent audit identified
+GHSA-27r3-jxmh-p828 in body-parser 2.3.0 via Mol*; a root override selects
+compatible patched body-parser 2.4.0. The final high-severity audit is run without
+advisory exceptions. Today's registry no longer reports the earlier braces
+finding. Historical audit results above describe their original inspection dates.
+The fallback code-security review preceded this dependency-only update; the
+final graph was subsequently audited and application checks rerun, not re-reviewed
+by the specialized security service. Advisory source:
+https://github.com/advisories/GHSA-mrhx-c7xc-m3w5 and
+https://github.com/advisories/GHSA-27r3-jxmh-p828.

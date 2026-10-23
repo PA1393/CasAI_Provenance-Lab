@@ -78,6 +78,19 @@ fn request_allowed(method: &str, path: &str, body: Option<&str>) -> bool {
         ("POST", ["", "api", "v1", "intake", "datasets", "inspect-text"]) => true,
         ("GET", ["", "api", "v1", "intake", "research-drafts", id]) => valid_hash(id),
         ("POST", ["", "api", "v1", "intake", "research-drafts", id, "confirm"]) => valid_hash(id),
+        ("GET", ["", "api", "v1", "intake", "confirmed-versions", id, "fasta"]) => valid_hash(id),
+        (
+            "POST",
+            [
+                "",
+                "api",
+                "v1",
+                "intake",
+                "confirmed-versions",
+                id,
+                "research-objects",
+            ],
+        ) => valid_hash(id),
         _ => false,
     }
 }
@@ -169,6 +182,21 @@ mod tests {
             Some("{}")
         ));
         let hash = format!("sha256:{}", "a".repeat(64));
+        assert!(request_allowed(
+            "GET",
+            &format!("/api/v1/intake/confirmed-versions/{hash}/fasta"),
+            None
+        ));
+        assert!(request_allowed(
+            "POST",
+            &format!("/api/v1/intake/confirmed-versions/{hash}/research-objects"),
+            Some("{}")
+        ));
+        assert!(!request_allowed(
+            "GET",
+            "/api/v1/intake/confirmed-versions/../fasta",
+            None
+        ));
         assert!(request_allowed(
             "GET",
             &format!("/api/v1/intake/research-drafts/{hash}"),

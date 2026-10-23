@@ -81,6 +81,12 @@ export async function saveExportText(filename: string, content: string): Promise
   return saved ? "saved" : "cancelled";
 }
 
+export async function saveFastaText(filename: string, content: string): Promise<"saved" | "cancelled"> {
+  if (!isTauri()) throw new Error("Native save is available in the packaged desktop app.");
+  const saved = await invoke<boolean>("save_fasta", { filename, content });
+  return saved ? "saved" : "cancelled";
+}
+
 export async function checkConnection(baseUrl: string): Promise<"ready" | "outdated"> {
   const generation = ++checkGeneration;
   writesEnabled = false;

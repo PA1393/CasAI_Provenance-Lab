@@ -231,3 +231,14 @@ class ConfirmedResearchSummary(Contract):
     records: tuple[SequenceRecordSummary, ...]
     approved_by: str
     acknowledged_warning_codes: tuple[str, ...]
+
+
+class ConfirmedRunInputBody(Contract):
+    record_id: str = Field(min_length=1, max_length=10_000)
+    name: str = Field(min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def nonempty_name(self):
+        if not self.name.strip():
+            raise ValueError("Run input name is required")
+        return self

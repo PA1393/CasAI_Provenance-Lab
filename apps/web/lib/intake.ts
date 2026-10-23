@@ -9,6 +9,26 @@ export type SequenceDraft = {
 };
 export type StoredDraft = { outcome: "accepted"; draft_id: string; draft: SequenceDraft };
 export type Confirmation = { version_id: string; approved_by: string; executable: boolean };
+export type ConfirmedFasta = {
+  schema_version: "casai.confirmed-fasta.v1"; version_id: string; filename: string;
+  content: string; byte_length: number; checksum: string; normalized_checksum: string;
+  original_artifact_checksum: string; record_count: number; claim_type: string;
+  warning_codes: string[];
+};
+
+export async function verifyConfirmedFasta(value: ConfirmedFasta, versionId: string): Promise<void> {
+  if (!/^sha256:[0-9a-f]{64}$/.test(versionId) ||
+      value.schema_version !== "casai.confirmed-fasta.v1" || value.version_id !== versionId ||
+      value.filename !== `casai-confirmed-${versionId.slice(7)}.fasta` ||
+      typeof value.content !== "string" || !value.content.startsWith(">")) {
+    throw new Error("FASTA package does not match this confirmed version.");
+  }
+  const bytes = new TextEncoder().encode(value.content);
+  if (bytes.length > 12_000_000) throw new Error("FASTA exceeds the download limit.");
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = "sha256:" + Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, "0")).join("");
+  if (value.checksum !== digest || value.byte_length !== bytes.length) throw new Error("FASTA integrity check failed. Nothing was saved.");
+}
 export type DatasetInspection = {
   outcome: "accepted";
   draft: { kind: "dataset"; executable: false; record_count: number; normalized_checksum: string;

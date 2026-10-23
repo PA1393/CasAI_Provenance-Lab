@@ -155,6 +155,14 @@ example and that no structure download starts until explicitly requested.
 
 ### Local integration progress (2026-10-23; not full milestone completion)
 
+Latest sequence handoff: confirmed records now support all-record normalized
+FASTA download and explicit single-record run preparation. Migration 007 retains
+the source version/record in legacy research objects; linked runs revalidate that
+source and emit its identity in provenance. The older bullets below describe the
+earlier increment. Deployment still requires migration 007 plus persistent shared
+workspace storage; no live migration/deployment or production handoff rehearsal
+has been performed. See desktop-demo.md for final checks and remaining limits.
+
 - Implemented and locally tested the Information Processor panel with six draft
   methods, resume, warning/field-origin review and immutable confirmation.
   FASTQ/VCF text evidence inspection is connected separately. Multi-part/gzip,

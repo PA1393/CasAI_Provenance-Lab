@@ -1,6 +1,6 @@
 import { fetchApi, getPublicEnv } from "@casai/env";
 import type { DemoExport } from "@/lib/demo-export";
-import type { StoredDraft, Confirmation, DatasetInspection } from "@/lib/intake";
+import type { StoredDraft, Confirmation, DatasetInspection, ConfirmedFasta } from "@/lib/intake";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,8 @@ export type ResearchObject = {
   // Full parsed sequence the pipeline runs against. Null when the research
   // object was created without a FASTA upload.
   sequence: string | null;
+  confirmed_version_id?: string | null;
+  confirmed_record_id?: string | null;
 };
 
 export type ResearchObjectCreate = {
@@ -112,6 +114,18 @@ export function confirmIntakeDraft(id: string, body: Record<string, unknown>): P
 export function inspectDatasetText(body: Record<string, unknown>): Promise<DatasetInspection> {
   return apiFetch("/api/v1/intake/datasets/inspect-text", { method: "POST",
     headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+}
+
+export function getConfirmedFasta(id: string): Promise<ConfirmedFasta> {
+  if (!/^sha256:[0-9a-f]{64}$/.test(id)) throw new Error("Invalid version identifier");
+  return apiFetch(`/api/v1/intake/confirmed-versions/${id}/fasta`);
+}
+export function prepareConfirmedRunInput(id: string, recordId: string, name: string): Promise<ResearchObject> {
+  if (!/^sha256:[0-9a-f]{64}$/.test(id)) throw new Error("Invalid version identifier");
+  return apiFetch(`/api/v1/intake/confirmed-versions/${id}/research-objects`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ record_id: recordId, name }),
+  });
 }
 
 // ─── Health ───────────────────────────────────────────────────────────────────

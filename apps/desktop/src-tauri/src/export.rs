@@ -32,6 +32,54 @@ fn valid_export(filename: &str, content: &str) -> bool {
         })
 }
 
+fn valid_fasta(filename: &str, content: &str) -> bool {
+    let Some(hash) = filename
+        .strip_prefix("casai-confirmed-")
+        .and_then(|s| s.strip_suffix(".fasta"))
+    else {
+        return false;
+    };
+    if hash.len() != 64
+        || !hash
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        || content.len() > 12_000_000
+        || !content.starts_with('>')
+        || !content.ends_with('\n')
+    {
+        return false;
+    }
+    let tag = format!("casai_version=sha256:{hash}");
+    let mut has_sequence = false;
+    for line in content.lines() {
+        if line.starts_with('>') {
+            if !line.contains(&tag) || line.chars().any(|c| c.is_control()) {
+                return false;
+            }
+        } else if line.is_empty() || !line.bytes().all(|b| b.is_ascii_uppercase()) {
+            return false;
+        } else {
+            has_sequence = true;
+        }
+    }
+    has_sequence
+}
+
+#[tauri::command]
+pub async fn save_fasta(
+    window: tauri::WebviewWindow,
+    filename: String,
+    content: String,
+) -> Result<bool, String> {
+    let source = window.url().map_err(|_| "Cannot verify caller")?;
+    if !crate::api::app_navigation_allowed(source.scheme(), source.host_str(), source.port())
+        || !valid_fasta(&filename, &content)
+    {
+        return Err("Invalid confirmed FASTA or caller".into());
+    }
+    save_selected(filename, content, "Save normalized FASTA", "fasta").await
+}
+
 #[tauri::command]
 pub async fn save_export(
     window: tauri::WebviewWindow,
@@ -44,12 +92,21 @@ pub async fn save_export(
     {
         return Err("Invalid demo export or caller".into());
     }
+    save_selected(filename, content, "Save CasAI recorded data", "json").await
+}
+
+async fn save_selected(
+    filename: String,
+    content: String,
+    title: &str,
+    extension: &str,
+) -> Result<bool, String> {
     // The webview never supplies an absolute path. Only the user's native Save
     // selection grants a destination, and existing files are never overwritten.
     let Some(file) = rfd::AsyncFileDialog::new()
-        .set_title("Save CasAI recorded data")
+        .set_title(title)
         .set_file_name(&filename)
-        .add_filter("JSON package", &["json"])
+        .add_filter("CasAI data", &[extension])
         .save_file()
         .await
     else {
@@ -90,5 +147,17 @@ mod tests {
             &content.replace("input.json", "../secret")
         ));
         assert!(!valid_export("casai-run-test.json", "{}"));
+    }
+
+    #[test]
+    fn fasta_saves_accept_only_named_confirmed_sequences() {
+        let hash = "a".repeat(64);
+        let name = format!("casai-confirmed-{hash}.fasta");
+        let content = format!(">record casai_version=sha256:{hash}\nACGT\n");
+        assert!(valid_fasta(&name, &content));
+        assert!(!valid_fasta("../escape.fasta", &content));
+        assert!(!valid_fasta(&name, "plain text"));
+        assert!(!valid_fasta(&name, &content.replace("ACGT", "acgt")));
+        assert!(!valid_fasta(&name, &content.replace("ACGT", "../escape")));
     }
 }
