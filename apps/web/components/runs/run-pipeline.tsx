@@ -1,6 +1,6 @@
 import type { ProvenanceEvent, Run } from "@/lib/api/client";
-import { STAGES } from "@/lib/stages";
-import { stageStatus } from "@/lib/run-progress";
+import { STAGES } from "../../lib/stages";
+import { stageStatus } from "../../lib/run-progress";
 
 type Props = {
   provenance: ProvenanceEvent[];

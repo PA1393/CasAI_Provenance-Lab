@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ResearchObject, Result, Run } from "@/lib/api/client";
-import { heuristicScore, summarizeResults } from "@/lib/result-summary";
+import { heuristicScore, summarizeResults } from "../../lib/result-summary";
 import { RunStatusBadge } from "./run-status-badge";
 
 type Props = {
