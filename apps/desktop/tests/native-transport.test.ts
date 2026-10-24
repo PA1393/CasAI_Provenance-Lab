@@ -20,7 +20,16 @@ function nativeMock() {
     calls.push({ command, payload: args });
     const path = (args as { path: string }).path;
     const body = path === "/health" ? { status: "ok" } : path === "/openapi.json"
-      ? { paths: { "/api/v1/intake/research-drafts": {}, "/api/v1/guide-maps": {}, "/api/v1/simulation-plans": {} } }
+      ? { paths: {
+        "/api/v1/intake/research-drafts": { post: {} },
+        "/api/v1/intake/research-drafts/{draft_id}": { get: {} },
+        "/api/v1/intake/research-drafts/{draft_id}/confirm": { post: {} },
+        "/api/v1/intake/datasets/inspect-text": { post: {} },
+        "/api/v1/intake/confirmed-versions/{version_id}/fasta": { get: {} },
+        "/api/v1/intake/confirmed-versions/{version_id}/research-objects": { post: {} },
+        "/api/v1/runs/{run_id}/export": { get: {} },
+        "/api/v1/guide-maps": { post: {} }, "/api/v1/simulation-plans": { post: {} },
+      } }
       : { run_id: "synthetic-test" };
     return { status: 200, body: JSON.stringify(body) };
   });

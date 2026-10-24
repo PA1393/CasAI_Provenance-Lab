@@ -33,9 +33,24 @@ let checkGeneration = 0;
 export function hasRequiredDemoRoutes(value: unknown): boolean {
   if (!value || typeof value !== "object" || !("paths" in value)) return false;
   const paths = value.paths;
-  if (!paths || typeof paths !== "object") return false;
-  return ["/api/v1/intake/research-drafts", "/api/v1/guide-maps", "/api/v1/simulation-plans"]
-    .every((path) => Object.hasOwn(paths, path));
+  if (!paths || typeof paths !== "object" || Array.isArray(paths)) return false;
+  const required = [
+    ["/api/v1/intake/research-drafts", "post"],
+    ["/api/v1/intake/research-drafts/{draft_id}", "get"],
+    ["/api/v1/intake/research-drafts/{draft_id}/confirm", "post"],
+    ["/api/v1/intake/datasets/inspect-text", "post"],
+    ["/api/v1/intake/confirmed-versions/{version_id}/fasta", "get"],
+    ["/api/v1/intake/confirmed-versions/{version_id}/research-objects", "post"],
+    ["/api/v1/runs/{run_id}/export", "get"],
+    ["/api/v1/guide-maps", "post"],
+    ["/api/v1/simulation-plans", "post"],
+  ];
+  return required.every(([path, method]) => {
+    const operations = (paths as Record<string, unknown>)[path];
+    if (!operations || typeof operations !== "object" || Array.isArray(operations)) return false;
+    const operation = (operations as Record<string, unknown>)[method];
+    return !!operation && typeof operation === "object" && !Array.isArray(operation);
+  });
 }
 
 export function saveApiUrl(value: string): { url: string; persisted: boolean } {

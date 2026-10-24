@@ -69,8 +69,13 @@ export function ProcessorPanel() {
       {!evidence && molecule === "RNA" && <label className="text-sm"><input type="checkbox" checked={convert} onChange={event => setConvert(event.target.checked)} /> Explicitly convert RNA U → DNA T</label>}
       {method === "fastq" && <label className="text-sm"><input type="checkbox" checked={phred33} onChange={event => setPhred33(event.target.checked)} /> I declare Phred+33 quality encoding (otherwise unresolved)</label>}
       {method !== "demo" && method !== "accession" && method !== "gene" && <label className="text-sm sm:col-span-2">{evidence ? "Evidence file (uncompressed UTF-8, up to 10 MB)" : "Optional file, or paste below"}<input type="file" accept={method === "fastq" ? ".fastq,.fq" : method === "vcf" ? ".vcf" : ".fa,.fasta,.fna,.txt"} className={field} onChange={event => {
+        // Handle invalidation here so the fieldset's bubbling change does not
+        // erase file errors or leave the previous sequence available to submit.
+        event.stopPropagation();
         const file = event.target.files?.[0]; if (!file) return;
-        if (file.size > INPUT_BYTE_LIMIT) { setNotice("File exceeds 10 MB."); return; }
+        invalidate(); setContent(""); setFilename(file.name);
+        event.target.value = "";
+        if (file.size > INPUT_BYTE_LIMIT) { setNotice("File exceeds 10 MB. Choose another file or paste new input."); return; }
         void action(async () => { const text = await file.text(); validateTextInput(text); setContent(text); setFilename(file.name); });
       }} /></label>}
       {method !== "demo" && <label className="text-sm sm:col-span-2">{method === "accession" ? "Exact accession/version" : method === "gene" ? "Gene symbol" : method === "objective" ? "Objective (never converted into invented sequence)" : "Input text"}

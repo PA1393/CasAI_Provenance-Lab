@@ -317,3 +317,32 @@ final graph was subsequently audited and application checks rerun, not re-review
 by the specialized security service. Advisory source:
 https://github.com/advisories/GHSA-mrhx-c7xc-m3w5 and
 https://github.com/advisories/GHSA-27r3-jxmh-p828.
+
+## Final pre-push verification (2026-10-23)
+
+The desktop startup gate now checks the HTTP operations for draft resume and
+confirmation, text evidence inspection, confirmed FASTA download/run preparation,
+and recorded-data export in addition to the prior mapping/planning routes.
+An older backend cannot enable submissions simply by exposing the original three
+paths. This route inventory still does not verify database migrations or durable
+workspace configuration. The current live API lacks these new routes and will
+correctly be marked outdated by this build until the backend is updated.
+
+Selecting a replacement file in the Information Processor now clears previous
+input before reading it. Invalid/empty/oversized replacement files cannot leave
+the old sequence available for submission, and their error remains visible.
+An actual local production-web rehearsal verified empty replacement rejection
+and recovery with the synthetic FASTA without submitting either to a backend.
+
+Final checks passed: 597 backend, 30 web, 17 desktop and five native Rust tests
+(649 total), web/desktop builds and type checks, backend/frontend lint, and the
+unsuppressed high-severity JavaScript dependency audit. The Mac release app was
+rebuilt. The latest upstream main and the user's fork main both point to
+`d8d6cd2`; its tree matches our existing `9b46475` base. Upstream backend/frontend
+validation passed, while its dependency-advisory job failed. The local dependency
+patches pass that audit; CI for these unpushed changes remains to be run.
+
+Migration 007, persistent workspace deployment and live handoff/export rehearsal
+remain release requirements. Windows/Linux packaging and interactive verification
+of this increment remain outstanding. Nothing in this local verification pushes
+commits, applies database migrations or deploys the backend.
