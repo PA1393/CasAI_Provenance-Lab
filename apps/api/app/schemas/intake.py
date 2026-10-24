@@ -31,6 +31,38 @@ class SequenceInspectBody(Contract):
     reference_assembly: str | None = None
 
 
+class DatasetTextBody(Contract):
+    """Text-only desktop transport; binary/gzip stays on the multipart endpoint."""
+    declared_format: Literal["fastq", "vcf"]
+    content: str = Field(min_length=1, max_length=MAX_INPUT_BYTES)
+    filename: str = Field(min_length=1, max_length=255)
+    mate_content: str | None = Field(default=None, max_length=MAX_INPUT_BYTES)
+    sample_id: str | None = Field(default=None, max_length=200)
+    quality_encoding: Literal["phred33"] | None = None
+    reference_content: str | None = Field(default=None, max_length=MAX_INPUT_BYTES)
+    reference_assembly: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def compatible_inputs(self):
+        if self.declared_format == "fastq" and (
+            self.reference_content is not None or self.reference_assembly is not None
+        ):
+            raise ValueError("FASTQ inspection does not accept a reference")
+        if self.declared_format == "vcf" and (
+            self.mate_content is not None or self.quality_encoding is not None
+        ):
+            raise ValueError("VCF inspection does not accept FASTQ options")
+        if "/" in self.filename or "\\" in self.filename or any(
+            ord(char) < 32 or ord(char) == 127 for char in self.filename
+        ):
+            raise ValueError("Filename must be a safe label, not a path")
+        if sum(len(part.encode("utf-8")) for part in (
+            self.content, self.mate_content or "", self.reference_content or ""
+        )) > MAX_INPUT_BYTES:
+            raise ValueError("Combined dataset exceeds the input byte budget")
+        return self
+
+
 class ArtifactSummary(Contract):
     filename: str
     role: Literal["reads", "mate_reads", "variants", "reference"]
@@ -59,6 +91,7 @@ class SequenceDraftSummary(Contract):
     warnings: tuple[ProcessingNotice, ...]
     missing_fields: tuple[MissingField, ...]
     ready_for_confirmation: bool
+    field_origins: dict[str, str] = Field(default_factory=dict)
 
 
 class DatasetDraftSummary(Contract):
@@ -198,3 +231,14 @@ class ConfirmedResearchSummary(Contract):
     records: tuple[SequenceRecordSummary, ...]
     approved_by: str
     acknowledged_warning_codes: tuple[str, ...]
+
+
+class ConfirmedRunInputBody(Contract):
+    record_id: str = Field(min_length=1, max_length=10_000)
+    name: str = Field(min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def nonempty_name(self):
+        if not self.name.strip():
+            raise ValueError("Run input name is required")
+        return self

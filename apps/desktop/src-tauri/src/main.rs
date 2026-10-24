@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod api;
+mod export;
 
 fn main() {
     tauri::Builder::default()
@@ -22,7 +23,11 @@ fn main() {
                 .build()?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![api::api_request])
+        .invoke_handler(tauri::generate_handler![
+            api::api_request,
+            export::save_export,
+            export::save_fasta
+        ])
         .run(tauri::generate_context!())
         .expect("failed to run CasAI Provenance Lab desktop shell");
 }

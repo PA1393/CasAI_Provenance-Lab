@@ -1,13 +1,14 @@
-import type { ProvenanceEvent } from "@/lib/api/client";
-import { STAGES } from "@/lib/stages";
-import { stageStatus } from "@/lib/run-progress";
+import type { ProvenanceEvent, Run } from "@/lib/api/client";
+import { STAGES } from "../../lib/stages";
+import { stageStatus } from "../../lib/run-progress";
 
 type Props = {
   provenance: ProvenanceEvent[];
   currentStage: string | null;
+  runStatus?: Run["status"];
 };
 
-export function RunPipeline({ provenance, currentStage }: Props) {
+export function RunPipeline({ provenance, currentStage, runStatus }: Props) {
   const eventsByStage = Object.fromEntries(
     STAGES.map((s) => [s.key, provenance.filter((e) => e.stage === s.key)])
   );
@@ -16,8 +17,8 @@ export function RunPipeline({ provenance, currentStage }: Props) {
     <ol className="flex flex-col gap-2">
       {STAGES.map((stage, i) => {
         const events = eventsByStage[stage.key] ?? [];
-        const isActive = stage.key === currentStage;
-        const state = stageStatus(stage.key, events, currentStage);
+        const state = stageStatus(stage.key, events, currentStage, runStatus);
+        const isActive = stage.key === currentStage && runStatus === "running";
         const isDone = state === "completed";
         const failed = state === "failed";
 
@@ -43,7 +44,7 @@ export function RunPipeline({ provenance, currentStage }: Props) {
                         : "border border-border text-muted"
                   }`}
                 >
-                  {failed ? "!" : isDone ? "✓" : i + 1}
+                  {isDone ? "✓" : i + 1}
                 </span>
                 <span
                   className={`font-mono text-xs tracking-[0.2em] uppercase font-semibold ${
@@ -59,6 +60,8 @@ export function RunPipeline({ provenance, currentStage }: Props) {
                 </span>
               )}
             </div>
+            <p className="ml-9 mt-2 text-xs capitalize text-text-secondary">{state === "failed" ? "Stopped — review the recorded event below" : state === "pending" ? "No completion evidence recorded" : state}</p>
+            {stage.key === "summary" && state === "completed" && <p className="ml-9 mt-2 text-sm text-text-secondary">Run reached its terminal summary state. The Summary tab displays the edit summary stored with the result.</p>}
 
             {events.map((event) => (
               <div

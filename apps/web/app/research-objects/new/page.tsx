@@ -1,4 +1,5 @@
 import { InputBundleForm } from "@/components/research-objects/input-bundle-form";
+import { ProcessorPanel } from "@/components/research-objects/processor-panel";
 
 export default function NewResearchObjectPage() {
   return (
@@ -17,6 +18,7 @@ export default function NewResearchObjectPage() {
       </div>
       <div className="mt-7">
         <InputBundleForm />
+        <ProcessorPanel />
       </div>
     </section>
   );

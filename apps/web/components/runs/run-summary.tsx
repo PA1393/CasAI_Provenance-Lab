@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ResearchObject, Result, Run } from "@/lib/api/client";
-import { heuristicScore, summarizeResults } from "@/lib/result-summary";
+import { heuristicScore, summarizeResults } from "../../lib/result-summary";
 import { RunStatusBadge } from "./run-status-badge";
 
 type Props = {
@@ -10,13 +10,18 @@ type Props = {
   unavailable?: boolean;
   onProvenance: () => void;
   onInteraction: () => void;
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 export function RunSummary({ results, run, researchObject, unavailable, onProvenance, onInteraction, children }: Props) {
   const summary = summarizeResults(results);
   return <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
     <div className="min-w-0 space-y-5">
+      <section className="rounded-xl border border-border bg-bg-card p-5">
+        <h2 className="font-serif-display text-2xl">Run summary</h2>
+        <p className="mt-3 text-sm leading-6 text-text-secondary">{unavailable ? "The run's stored results could not be retrieved." : results.length ? results.map(result => result.edit_summary || "A result was stored without an edit summary.").join(" ") : run?.status === "failed" ? "This run stopped before producing a stored result. Open Provenance for the recorded reason." : run?.status === "completed" ? "The run is marked completed, but no result summary is stored. Review Provenance before relying on it." : "A summary will be available after the run records a result."}</p>
+        <p className="mt-3 text-xs text-muted">Generated deterministically from recorded results, not an additional AI interpretation.</p>
+      </section>
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryMetric label="On-target heuristic" value={unavailable ? "—" : summary.onTarget} detail="First recorded design; not measured efficiency" />
         <SummaryMetric label="Off-target heuristic" value={unavailable ? "—" : summary.offTarget} detail="First recorded design; not measured risk" />
@@ -61,7 +66,7 @@ export function RunSummary({ results, run, researchObject, unavailable, onProven
         </dl>
         <button type="button" onClick={onProvenance} className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-bg hover:bg-accent-bright">View provenance</button>
       </section>
-      <p className="rounded-xl border border-border bg-accent-soft/40 p-4 text-xs leading-6 text-text-secondary">Concept demo — heuristic scores are not experimental measurements. A completed run does not validate biological accuracy.</p>
+      <p className="rounded-xl border border-border bg-accent-soft/40 p-4 text-xs leading-6 text-text-secondary">Research preview — based on supplied sequences, computational edit rules and available public structure references. Scores and 3D scenes are exploratory, not experimentally validated predictions.</p>
     </aside>
   </div>;
 }

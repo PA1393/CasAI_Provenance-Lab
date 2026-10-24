@@ -21,6 +21,7 @@ from app.modules.information_processor.contracts import (
     ProcessingNotice,
     ResearchDraft,
 )
+from app.modules.information_processor.handoff import export_confirmed_fasta, prepare_run_input
 from app.modules.information_processor.intake import (
     FastqInspectionRequest,
     IntakeInspection,
@@ -48,7 +49,9 @@ from app.schemas.intake import (
     ArtifactSummary,
     ConfirmationBody,
     ConfirmedResearchSummary,
+    ConfirmedRunInputBody,
     DatasetDraftSummary,
+    DatasetTextBody,
     DetectionBody,
     DetectionResponse,
     IntakeInspectionResponse,
@@ -60,6 +63,7 @@ from app.schemas.intake import (
     SequenceRecordSummary,
     StoredSequenceDraftResponse,
 )
+from app.schemas.research_objects import ResearchObject
 
 router = APIRouter(prefix="/intake", tags=["intake"])
 _TOO_LARGE = {
@@ -71,6 +75,47 @@ _TOO_LARGE = {
     "too_many_records",
 }
 _SHA256_PATH = r"^sha256:[0-9a-f]{64}$"
+
+
+@router.get("/confirmed-versions/{version_id}/fasta")
+def download_confirmed_fasta(
+    version_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> dict:
+    try:
+        return export_confirmed_fasta(workspace.load_confirmed_version(version_id))
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Confirmed version not found") from exc
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=409, detail="Confirmed input failed integrity checks"
+        ) from exc
+
+
+@router.post("/confirmed-versions/{version_id}/research-objects", response_model=ResearchObject)
+def prepare_confirmed_run_input(
+    body: ConfirmedRunInputBody,
+    version_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> ResearchObject:
+    try:
+        row = prepare_run_input(
+            workspace, version_id, body.record_id, body.name.strip(),
+        )
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Confirmed version not found") from exc
+    except WorkspaceError as exc:
+        raise HTTPException(
+            status_code=409, detail="Confirmed input failed integrity checks"
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=(
+            "Run preparation unavailable. Check database migration 007 and workspace persistence; "
+            "no run was submitted."
+        )) from exc
+    return ResearchObject(**row)
 
 
 def _artifact_summary(artifact) -> ArtifactSummary:
@@ -104,6 +149,16 @@ def _sequence_summary(draft: ResearchDraft) -> SequenceDraftSummary:
         warnings=draft.warnings,
         missing_fields=draft.missing_fields,
         ready_for_confirmation=draft.ready_for_confirmation,
+        field_origins={
+            **{name: getattr(draft, name).origin for name in (
+                "accession", "gene_symbol", "organism", "transcript", "reference_assembly",
+                "objective",
+            )},
+            **{f"{record.record_id.value}.{name}": getattr(record, name).origin
+               for record in draft.records for name in (
+                   "sequence", "molecule_type", "reference_accession", "transcript",
+               )},
+        },
     )
 
 
@@ -191,6 +246,54 @@ def _reference_response(draft: ReferenceDraft) -> ReferenceInspectionResponse:
 
 def _set_rejection_status(response: Response, issue: ProcessingNotice) -> None:
     response.status_code = 413 if issue.code in _TOO_LARGE else 400
+
+
+@router.post("/datasets/inspect-text", response_model=IntakeInspectionResponse)
+def inspect_dataset_text(body: DatasetTextBody, response: Response) -> IntakeInspectionResponse:
+    try:
+        content = encode_input(body.content)
+        if body.declared_format == "fastq":
+            request = FastqInspectionRequest(
+                content=content, filename=body.filename, sample_id=body.sample_id,
+                quality_encoding=body.quality_encoding,
+                mate_content=encode_input(body.mate_content) if body.mate_content else None,
+                mate_filename="mate.fastq" if body.mate_content else None,
+            )
+        else:
+            request = VcfInspectionRequest(
+                content=content, filename=body.filename, sample_id=body.sample_id,
+                reference_assembly=body.reference_assembly,
+                reference_content=encode_input(body.reference_content)
+                if body.reference_content else None,
+                reference_filename="reference.fasta" if body.reference_content else None,
+            )
+        result = inspect_input(request)
+    except InputValidationError as exc:
+        _set_rejection_status(response, exc.issue)
+        return IntakeInspectionResponse(
+            declared_format=body.declared_format, outcome="rejected", issue=exc.issue,
+        )
+    if result.issue is not None:
+        _set_rejection_status(response, result.issue)
+    return _inspection_response(result)
+
+
+@router.get("/research-drafts/{draft_id}", response_model=StoredSequenceDraftResponse)
+def get_stored_research_draft(
+    draft_id: str = Path(pattern=_SHA256_PATH),
+    workspace: LocalWorkspace = Depends(get_intake_workspace),
+) -> StoredSequenceDraftResponse:
+    try:
+        draft = workspace.load_draft(draft_id)
+    except DraftNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Research draft not found") from exc
+    except WorkspaceError as exc:
+        raise HTTPException(status_code=409, detail="Draft failed integrity checks") from exc
+    if not isinstance(draft, ResearchDraft):
+        raise HTTPException(status_code=400, detail="Not a sequence research draft")
+    return StoredSequenceDraftResponse(
+        outcome="accepted", draft_id=draft_id, draft=_sequence_summary(draft),
+    )
 
 
 def _safe_filename(upload: UploadFile, fallback: str) -> str:

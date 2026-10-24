@@ -6,11 +6,12 @@ import { createRun } from "@/lib/api/client";
 
 type Props = {
   researchObjectId: string;
+  initialOpen?: boolean;
 };
 
-export function StartRunForm({ researchObjectId }: Props) {
+export function StartRunForm({ researchObjectId, initialOpen = false }: Props) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

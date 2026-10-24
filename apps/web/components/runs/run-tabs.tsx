@@ -8,6 +8,7 @@ import { RunPipeline } from "@/components/runs/run-pipeline";
 import { RunSimulation } from "@/components/runs/simulation/run-simulation";
 import { extractEditGeometry } from "@/components/runs/simulation/sequence-track";
 import { RagSources } from "@/components/runs/rag-sources";
+import { ExportButton } from "./export-button";
 
 type RagSource = {
   chunk_id: string | null | undefined;
@@ -68,6 +69,7 @@ export function RunTabs({
 
   return (
     <div>
+      {run && <ExportButton runId={run.run_id} enabled={run.status === "completed" || run.status === "failed"} />}
       <div role="tablist" aria-label="Run details" className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-bg-card">
         {tabs.map((tab) => (
           <button
@@ -108,7 +110,7 @@ export function RunTabs({
           />
         )}
         {active === "provenance" && (
-          provenanceUnavailable ? <p role="alert" className="text-sm text-accent-amber">Provenance could not be loaded. Refresh to try again.</p> : <ProvenanceTab events={provenance} currentStage={currentStage} />
+          provenanceUnavailable ? <p role="alert" className="text-sm text-accent-amber">Provenance could not be loaded. Refresh to try again.</p> : <ProvenanceTab events={provenance} currentStage={currentStage} runStatus={run?.status} />
         )}
         {active === "results" && <RunSummary results={results} run={run} researchObject={researchObject} unavailable={resultsUnavailable} onProvenance={() => selectTab("provenance")} onInteraction={() => selectTab("simulation")}><ResultsTab results={results} /></RunSummary>}
         {active === "sources" && <RagSources sources={ragSources} />}
@@ -120,14 +122,16 @@ export function RunTabs({
 function ProvenanceTab({
   events,
   currentStage,
+  runStatus,
 }: {
   events: ProvenanceEvent[];
   currentStage: string | null;
+  runStatus?: Run["status"];
 }) {
   if (events.length === 0) {
     return <p className="text-sm text-muted">No provenance events recorded yet.</p>;
   }
-  return <RunPipeline provenance={events} currentStage={currentStage} />;
+  return <RunPipeline provenance={events} currentStage={currentStage} runStatus={runStatus} />;
 }
 
 function ResultsTab({ results }: { results: Result[] }) {

@@ -140,3 +140,209 @@ TypeScript/Vite build passed. The Mac package rebuilt and its ad-hoc signature
 verified. The three native boundary tests passed for the desktop increment;
 native Rust source is unchanged by this layout change. The dependency audit
 still reports the known high-severity braces advisory; it is not audit-clean.
+
+## Molecular-viewer correction and original CasAI scene
+
+The original published desktop build could fail while evaluating Mol*/Immutable
+namespace and prototype methods under Tauri's frozen Object.prototype. The
+desktop build now transforms those vetted dependency assignments into compatible
+own-property definitions. The global prototype freeze, CSP and native request
+boundaries remain enabled. The transform also runs during dependency optimization;
+tests cover actual installed library source, assignment values and frozen globals.
+
+The public viewer has a panel-local error boundary, initialization/representation
+checks and a diagnostic/retry path. It supports an expanded native HTML dialog,
+Escape/Close, return focus, camera reset, protein and nucleic-acid visibility,
+optional camera rotation and opt-in illustrative phase styling. Neither rotation
+nor colors are a calculated molecular trajectory, and deposited coordinates are
+not edited to claim a predicted base conversion.
+
+CasAI's original sequence explorer renders a bounded 64-base window using its
+own 3D schematic geometry and perspective projection. Orbit, zoom, keyboard
+camera controls, base selection, windowing and reset operate on the actual
+supplied sequence. Changed bases are identified by comparison to a same-length
+stored output; missing/mismatched output never invents an edit. This is NOT an
+atomic model, force field, docking engine, enzyme pathway or molecular dynamics.
+
+The run Summary displays the persisted deterministic edit summary. Provenance
+receives run status so a completed terminal summary is not shown as perpetually
+active. No new AI-generated biological interpretation is introduced. Overview
+failure badges become neutral Review run links; run-detail status and the audit
+trail still disclose failures. No historical records are rewritten.
+
+Public reference examples were checked against the source catalog:
+[4UN3](https://www.rcsb.org/structure/4UN3),
+[5F9R](https://www.rcsb.org/structure/5F9R) and
+[6VPC](https://www.rcsb.org/structure/6VPC). These are separate references, not
+structures matched or validated against the user's sequence.
+
+This correction does not complete all B-blocks; the follow-up below adds intake,
+export and local execution-journal plumbing without claiming full delivery.
+
+## Demo integration follow-up (2026-10-23)
+
+The Add input screen now includes an Information Processor alongside the legacy
+guided FASTA form. It connects the six existing input methods to stored-draft,
+summary/resume and immutable-confirmation APIs. It displays record identities,
+checksums, field origins, warnings and missing-field actions, and requires review
+acknowledgment plus a non-authenticated attribution label. Only a draft ID is
+saved in browser preferences; sequence payloads are not placed in localStorage.
+Protein/RNA declarations and explicit RNA-to-DNA conversion remain distinct.
+Accession, gene and objective requests stay non-executable when unresolved;
+no automatic biological reference downloads or invented sequence are added.
+
+FASTQ/VCF evidence uses a new bounded JSON text-inspection endpoint compatible
+with the scoped native transport. Inputs are uncompressed UTF-8; the existing
+multipart API remains the path for gzip and paired files, which this UI does not
+yet expose. Phred+33 requires an explicit user declaration. VCF can optionally
+receive a supplied reference for REF checking. Evidence inspection returns
+metadata only, does not persist those datasets, and cannot launch sequence runs.
+Confirmed workspace versions are not yet bridged into the legacy Supabase run
+workflow. Hosted serverless workspace persistence is still a deployment concern.
+
+Terminal runs have Export recorded data above the tabs. The API builds an
+allowlisted JSON snapshot containing input, run, results and provenance documents,
+their exact UTF-8 byte lengths and SHA-256 digests. The client verifies every file
+before requesting a download. The packaged client opens native Save As and uses
+exclusive creation, never a JavaScript-supplied absolute path or an overwrite.
+Cancellation writes nothing. This is NOT a complete immutable archive, PDF report,
+source-rights verification or commercial reuse license. Originals, approved plans,
+mapped scene assets and trajectory artifacts are explicitly absent. Historical
+demo data may include old placeholders; checksum validation is not scientific validation.
+Exports require the new backend route to be deployed before use; no deployment
+or live export was performed in this increment. Local API/byte-integrity tests
+passed; native Save As has compiled but has not completed an end-to-end save test.
+
+`simulation/durable.py` adds a v2 backend-only local execution journal. A fresh
+server nonce distinguishes invocations, attempts bind to session/retry identity,
+and immutable checksummed revisions preserve outcomes/cancellation across reopen.
+Transitions validate their stored parent. V1 identity semantics are unchanged.
+There is no mutable latest pointer, distributed job scheduler, public executable
+session route or actor-scoped idempotency implementation. Caller attribution is
+not authority. Trusted approval, approved mapping integration and installed real
+scientific engines must precede exposing executable sessions.
+
+Native macOS inspection verified deposited 4UN3 rendering (13,629 structure
+elements), expanded popup, protein visibility, reset camera and Escape/focus return.
+The renderer now flushes deferred canvas commits before checking readiness;
+otherwise WKWebView can falsely report an empty representation while its
+animation loop has not committed. A final package rebuild includes the new UI.
+Screen evidence was displayed inline; saving a screenshot file was blocked by
+the UI tool's filesystem restrictions, and no video recording tool was available.
+
+Validation: backend lint and 587 tests; 28 web behavior tests; 16 desktop tests;
+web/desktop typecheck and builds; four native Rust tests. Repeat final builds
+after changes. Windows/Linux packaging and interactive launch checks for this
+increment have not run; the matrix remains configured but no CI was dispatched.
+macOS ad-hoc packaging is not public signing/notarization. The known braces
+advisory is not suppressed. See remaining-delivery-plan.md for unfinished work.
+
+## Confirmed input actions: final demo handoff (2026-10-23)
+
+After sequence confirmation, the Information Processor now exposes:
+
+- **Download normalized FASTA**: all confirmed records remain separate with their
+  original IDs, normalized sequence, molecule declaration, confirmed-version ID,
+  original-artifact checksum and per-record checksum in the headers. The response
+  also identifies claim type/warnings and the complete download checksum. The
+  client verifies version, filename, byte length and SHA-256 before saving. This
+  is a normalized derivative, never a replacement for original uploaded bytes.
+- **Use in a run**: choose exactly one confirmed record, prepare a linked legacy
+  research input, then open the existing run form. Preparation does not execute a
+  run or call an AI agent. The bridge supports unambiguous A/C/G/T DNA up to 5,000
+  bases; RNA requires explicit conversion in a new confirmed draft. Protein,
+  unresolved and ambiguous inputs are not silently converted. FASTQ/VCF inspection
+  remains evidence-only and does not acquire these sequence-confirmation actions.
+
+The server derives the prepared input from its stored confirmed snapshot, not a
+client-provided sequence. Deterministic per-version/per-record UUIDs and a unique
+database index make repeat preparation reopen the first input without rewriting
+it. Only the first preparation's display name is retained. Every linked run
+checks the sequence/hash against the stored version before inserting a run, then
+records version and record IDs in its input provenance. If the workspace version
+is missing or mismatched, the run is blocked rather than silently downgraded to
+legacy unconfirmed input. Existing unlinked legacy inputs remain compatible.
+
+Native FASTA saving uses a separate bounded command and native Save As. The
+renderer cannot choose an arbitrary absolute destination; existing files are not
+overwritten. Browser downloads use the standard download flow. Both paths keep
+biological accuracy and rights limitations explicit.
+
+### Deployment order and remaining checks
+
+1. Apply `apps/api/migrations/007_confirmed_input_link.sql` once in Supabase.
+   It adds nullable source-link fields plus a paired-field constraint and unique
+   index. It does not rewrite historical research objects. It was NOT applied
+   to the live database during implementation.
+2. Configure persistent intake workspace storage accessible to both confirmation
+   and run workers. Ephemeral Vercel filesystems are not a durable research store;
+   a shared durable backend is required for reliable cross-instance run handoff.
+3. Deploy the new backend routes and rebuild/install the desktop client. Check
+   the two new actions against that deployment before presenting a live demo.
+
+Validation: backend lint and 597 tests; 30 web behavior tests; 16 desktop tests;
+five native Rust tests; web/desktop typecheck, lint/build and ad-hoc Mac package
+signature verification. The fallback read-only security review covered the
+combined increment and found no actionable new findings. The specialized
+security-review tool was unavailable; this is not an independent security audit.
+Known no-auth/attribution/workspace limitations remain unchanged.
+
+A real browser rehearsal against an isolated localhost API stored and confirmed
+the versioned synthetic demo, downloaded a 327-byte FASTA to Downloads, and
+verified the exact sequence and source headers. Test-only workspace files were
+kept separate from researcher data. No live Supabase writes or run submissions
+were made. API tests exercise the handoff with a fake DB, exact-record selection,
+repeat preparation, rejected source changes, unsupported molecule
+types, explicit RNA conversion and sanitized database errors. Native Save As and
+Windows/Linux launch remain unverified end-to-end for this increment. Screenshots
+were displayed inline; local screenshot-file saving was blocked by UI tool
+permissions. No screen recording tool was available.
+
+This closes the requested sequence-processing-to-download/run-setup connection
+in code. It does not complete real molecular dynamics, approved scientific engine
+execution, full immutable PDF/archive/rights workflows, private-data security or
+public cross-platform signing. Code ready for review/push is not a claim that
+those deployment/release milestones have been completed.
+
+The final dependency audit identified GHSA-mrhx-c7xc-m3w5 in Zod <4.6.6. Both
+workspace dependencies are now pinned to 4.6.6 and bun.lock was refreshed without
+running dependency scripts. A URL-validation regression covers the existing
+default/explicit/invalid URL behavior. A subsequent audit identified
+GHSA-27r3-jxmh-p828 in body-parser 2.3.0 via Mol*; a root override selects
+compatible patched body-parser 2.4.0. The final high-severity audit is run without
+advisory exceptions. Today's registry no longer reports the earlier braces
+finding. Historical audit results above describe their original inspection dates.
+The fallback code-security review preceded this dependency-only update; the
+final graph was subsequently audited and application checks rerun, not re-reviewed
+by the specialized security service. Advisory source:
+https://github.com/advisories/GHSA-mrhx-c7xc-m3w5 and
+https://github.com/advisories/GHSA-27r3-jxmh-p828.
+
+## Final pre-push verification (2026-10-23)
+
+The desktop startup gate now checks the HTTP operations for draft resume and
+confirmation, text evidence inspection, confirmed FASTA download/run preparation,
+and recorded-data export in addition to the prior mapping/planning routes.
+An older backend cannot enable submissions simply by exposing the original three
+paths. This route inventory still does not verify database migrations or durable
+workspace configuration. The current live API lacks these new routes and will
+correctly be marked outdated by this build until the backend is updated.
+
+Selecting a replacement file in the Information Processor now clears previous
+input before reading it. Invalid/empty/oversized replacement files cannot leave
+the old sequence available for submission, and their error remains visible.
+An actual local production-web rehearsal verified empty replacement rejection
+and recovery with the synthetic FASTA without submitting either to a backend.
+
+Final checks passed: 597 backend, 30 web, 17 desktop and five native Rust tests
+(649 total), web/desktop builds and type checks, backend/frontend lint, and the
+unsuppressed high-severity JavaScript dependency audit. The Mac release app was
+rebuilt. The latest upstream main and the user's fork main both point to
+`d8d6cd2`; its tree matches our existing `9b46475` base. Upstream backend/frontend
+validation passed, while its dependency-advisory job failed. The local dependency
+patches pass that audit; CI for these unpushed changes remains to be run.
+
+Migration 007, persistent workspace deployment and live handoff/export rehearsal
+remain release requirements. Windows/Linux packaging and interactive verification
+of this increment remain outstanding. Nothing in this local verification pushes
+commits, applies database migrations or deploys the backend.
