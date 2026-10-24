@@ -8,12 +8,11 @@ import { PluginUIContext } from "molstar/lib/mol-plugin-ui/context";
 import type { StateObjectSelector } from "molstar/lib/mol-state";
 import { Vec3 } from "molstar/lib/mol-math/linear-algebra";
 import { Color } from "molstar/lib/mol-util/color/color";
+import { PluginCommands } from "molstar/lib/mol-plugin/commands";
 import "molstar/build/viewer/molstar.css";
 
-// 3D molecular viewer for the CRISPR edit. Renders a real Cas9–sgRNA–DNA
-// complex from the PDB via Mol*. The structure spins continuously and
-// re-styles per simulation phase so the "enzyme" is visibly engaging the
-// DNA as the edit proceeds.
+// Deposited reference coordinates, not a predicted complex for the user's edit.
+// Optional phase colors and camera rotation never alter atomic coordinates.
 
 type Props = {
   phase: number;
@@ -49,7 +48,7 @@ interface StructureRefs {
 // tearing down parts of the scene that don't depend on phase.
 async function applyPhaseStyle(plugin: PluginUIContext, refs: StructureRefs, phase: number) {
   if (refs.surfaceRepr) {
-    plugin.build().delete(refs.surfaceRepr).commit();
+    await plugin.build().delete(refs.surfaceRepr).commit();
     refs.surfaceRepr = undefined;
   }
   if (phase >= 2 && refs.protein) {
@@ -62,7 +61,7 @@ async function applyPhaseStyle(plugin: PluginUIContext, refs: StructureRefs, pha
   }
 
   if (refs.stickRepr) {
-    plugin.build().delete(refs.stickRepr).commit();
+    await plugin.build().delete(refs.stickRepr).commit();
     refs.stickRepr = undefined;
   }
   if (refs.nucleic) {
@@ -107,8 +106,11 @@ export function Molecule3D({ phase, pdbId }: Props) {
   const pluginPromiseRef = useRef<Promise<PluginUIContext> | null>(null);
   const refsRef = useRef<StructureRefs | null>(null);
   const generationRef = useRef(0);
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
+  const [illustrativeColors, setIllustrativeColors] = useState(false);
+  const stylePhase = illustrativeColors ? phase : 0;
+  const phaseRef = useRef(stylePhase);
+  const styleQueueRef = useRef<Promise<void>>(Promise.resolve());
+  phaseRef.current = stylePhase;
 
   const safePdbId = pdbId && /^[A-Za-z0-9]{4}$/.test(pdbId) ? pdbId.toUpperCase() : null;
   const options = safePdbId
@@ -118,6 +120,12 @@ export function Molecule3D({ phase, pdbId }: Props) {
   const [structure, setStructure] = useState(CRISPR_STRUCTURES[0].id);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [retryCount, setRetryCount] = useState(0);
+  const [proteinVisible, setProteinVisible] = useState(true);
+  const [nucleicVisible, setNucleicVisible] = useState(true);
+  const [spinning, setSpinning] = useState(false);
+  const [controlNotice, setControlNotice] = useState<string | null>(null);
+  const [diagnostic, setDiagnostic] = useState("");
+  const [elementCount, setElementCount] = useState(0);
 
   // Plugin lifecycle: created once per mount, disposed once on unmount.
   // React StrictMode double-invokes this effect in dev, and the two
@@ -140,13 +148,15 @@ export function Molecule3D({ phase, pdbId }: Props) {
     const promise = createPluginUI({
       target: mountNode,
       render: renderReact18,
-      spec: DefaultPluginUISpec(),
-    }).then((plugin) => {
+      spec: { ...DefaultPluginUISpec(), layout: { initial: { isExpanded: false, showControls: false } } },
+    }).then(async (plugin) => {
       if (cancelled) {
         plugin.dispose();
         throw new Error("Molecule3D unmounted before plugin finished initializing");
       }
       pluginInstance = plugin;
+      await plugin.canvas3dInitialized;
+      if (!plugin.canvas3d) throw new Error("WebGL molecular renderer was not initialized");
       return plugin;
     });
 
@@ -159,13 +169,14 @@ export function Molecule3D({ phase, pdbId }: Props) {
       mountNode.remove();
       pluginInstance?.dispose();
     };
-  }, []);
+  }, [retryCount]);
 
   // Build / rebuild the scene when the chosen structure changes.
   useEffect(() => {
     const generation = ++generationRef.current;
     let active = true;
     setStatus("loading");
+    setDiagnostic("");
 
     (async () => {
       const promise = pluginPromiseRef.current;
@@ -174,12 +185,18 @@ export function Molecule3D({ phase, pdbId }: Props) {
       let plugin: PluginUIContext;
       try {
         plugin = await promise;
-      } catch {
+      } catch (error) {
+        if (active && generation === generationRef.current) {
+          setStatus("error");
+          setDiagnostic(error instanceof Error ? error.message.slice(0, 300) : "Renderer initialization failed");
+        }
         return;
       }
       if (!active || generation !== generationRef.current) return;
 
       try {
+        await styleQueueRef.current;
+        if (!active || generation !== generationRef.current) return;
         await plugin.clear();
         if (!active || generation !== generationRef.current) return;
 
@@ -197,22 +214,38 @@ export function Molecule3D({ phase, pdbId }: Props) {
 
         const structureObj = await plugin.builders.structure.createStructure(model);
         if (!active || generation !== generationRef.current) return;
+        setElementCount(structureObj.obj?.data.elementCount ?? 0);
 
         const refs = await buildComponents(plugin, structureObj);
         if (!active || generation !== generationRef.current) return;
         refsRef.current = refs;
+        setProteinVisible(true);
+        setNucleicVisible(true);
+        setSpinning(false);
 
         await applyPhaseStyle(plugin, refs, phaseRef.current);
         if (!active || generation !== generationRef.current) return;
+        const broken = Array.from(plugin.state.data.cells.values()).find(cell => cell.status === "error");
+        if (broken) throw new Error(broken.errorText || "Structure representation failed");
+        if (!structureObj.obj?.data.elementCount) throw new Error("The reference contained no renderable elements");
+        // Representation commits are otherwise deferred to the animation loop.
+        // WKWebView can suspend that loop while an expanded dialog is loading;
+        // flush before checking readiness rather than reporting a false failure.
+        plugin.canvas3d?.commit(true);
+        if (!plugin.canvas3d?.reprCount.value) throw new Error("The renderer did not create a molecular representation");
 
         plugin.managers.camera.reset();
         plugin.canvas3d?.setProps({
-          trackball: { animate: { name: "spin", params: { speed: 1, axis: Vec3.create(0, 1, 0) } } },
+          renderer: { backgroundColor: Color.fromHexStyle("#0b1220") },
+          trackball: { animate: { name: "off", params: {} } },
         });
 
         setStatus("ready");
-      } catch {
-        if (active && generation === generationRef.current) setStatus("error");
+      } catch (error) {
+        if (active && generation === generationRef.current) {
+          setStatus("error");
+          setDiagnostic(error instanceof Error ? error.message.slice(0, 300) : "Structure loading failed");
+        }
       }
     })();
 
@@ -227,16 +260,37 @@ export function Molecule3D({ phase, pdbId }: Props) {
     const plugin = pluginPromiseRef.current;
     const refs = refsRef.current;
     if (!plugin || !refs) return;
-    plugin.then((p) => {
-      if (refsRef.current === refs) applyPhaseStyle(p, refs, phase);
+    let active = true;
+    styleQueueRef.current = styleQueueRef.current.catch(() => {}).then(async () => {
+      const p = await plugin;
+      if (active && refsRef.current === refs) await applyPhaseStyle(p, refs, stylePhase);
+    }).catch(() => {
+      if (active && refsRef.current === refs) setStatus("error");
     });
-  }, [phase, status]);
+    return () => { active = false; };
+  }, [stylePhase, status]);
+
+  async function control(action: (plugin: PluginUIContext) => void | Promise<void>) {
+    const promise = pluginPromiseRef.current;
+    if (!promise || status !== "ready") return;
+    try { await action(await promise); setControlNotice(null); }
+    catch { setControlNotice("That view control was unavailable. The stored run was not changed."); }
+  }
+
+  function togglePart(part: "protein" | "nucleic") {
+    void control(async plugin => {
+      const ref = refsRef.current?.[part];
+      if (!ref) { setControlNotice("This reference has no matching component."); return; }
+      await PluginCommands.State.ToggleVisibility(plugin, { state: plugin.state.data, ref: ref.ref });
+      if (part === "protein") setProteinVisible(value => !value);
+      else setNucleicVisible(value => !value);
+    });
+  }
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg">
-      <div ref={containerRef} className="absolute inset-0" />
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg">
 
-      <div className="absolute left-3 top-3 z-10">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-bg-card p-2">
         <select
           aria-label="Public example structure"
           value={structure}
@@ -249,7 +303,19 @@ export function Molecule3D({ phase, pdbId }: Props) {
             </option>
           ))}
         </select>
+        <button type="button" disabled={status !== "ready"} onClick={() => void control(plugin => { plugin.managers.camera.reset(); })} className="rounded border border-border px-2 py-1 text-xs disabled:opacity-40">Reset camera</button>
+        <button type="button" disabled={status !== "ready"} aria-pressed={proteinVisible} onClick={() => togglePart("protein")} className="rounded border border-border px-2 py-1 text-xs disabled:opacity-40">Protein {proteinVisible ? "on" : "off"}</button>
+        <button type="button" disabled={status !== "ready"} aria-pressed={nucleicVisible} onClick={() => togglePart("nucleic")} className="rounded border border-border px-2 py-1 text-xs disabled:opacity-40">DNA / RNA {nucleicVisible ? "on" : "off"}</button>
+        <button type="button" disabled={status !== "ready"} aria-pressed={spinning} onClick={() => void control(plugin => {
+          plugin.canvas3d?.setProps({ trackball: { animate: spinning ? { name: "off", params: {} } : { name: "spin", params: { speed: 1, axis: Vec3.create(0, 1, 0) } } } });
+          setSpinning(value => !value);
+        })} className="rounded border border-border px-2 py-1 text-xs disabled:opacity-40">{spinning ? "Stop rotation" : "Rotate view"}</button>
+        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={illustrativeColors} onChange={event => setIllustrativeColors(event.target.checked)} />Illustrative phase colors</label>
       </div>
+      <p className="px-3 py-2 text-xs text-muted">Drag to orbit · scroll to zoom · hover or click atoms/residues to inspect. Rotation and phase colors are presentation controls, not molecular motion.</p>
+      {status === "ready" && <p role="status" className="px-3 pb-2 text-xs text-muted">Reference {structure} · {elementCount.toLocaleString()} structure elements</p>}
+      {controlNotice && <p role="status" className="px-3 text-xs text-muted">{controlNotice}</p>}
+      <div ref={containerRef} className="relative min-h-0 flex-1" />
 
       {status === "loading" && (
         <div className="absolute inset-0 z-0 flex items-center justify-center font-mono text-xs text-muted">
@@ -260,6 +326,7 @@ export function Molecule3D({ phase, pdbId }: Props) {
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-bg/80 px-6 text-center font-mono text-xs text-accent-red">
           <span>Could not load the 3D structure.</span>
           <span className="text-muted">Check your internet connection (structures stream from RCSB).</span>
+          {diagnostic && <details className="text-xs text-muted"><summary>Viewer diagnostic</summary><p>{diagnostic}</p></details>}
           <button
             onClick={() => setRetryCount((count) => count + 1)}
             className="mt-1 rounded border border-border px-3 py-1 text-text hover:border-accent"

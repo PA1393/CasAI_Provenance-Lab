@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import { Molecule2D } from "@/components/runs/simulation/molecule-2d";
+import { CasaiScene } from "./casai-scene";
+import { ReferenceStructurePanel } from "./reference-structure-panel";
 import {
   SequenceTrack,
   type EditGeometry,
 } from "@/components/runs/simulation/sequence-track";
 
-// Mol* is large; keep it out of the first-paint bundle.
-const Molecule3D = dynamic(
-  () => import("@/components/runs/simulation/molecule-3d").then((m) => m.Molecule3D),
-  { ssr: false },
-);
 
 type Props = {
   pdbId?: string | null;
@@ -55,8 +51,7 @@ export function RunSimulation({
   geometry,
 }: Props) {
   const [phase, setPhase] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const [loadStructure, setLoadStructure] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -83,7 +78,7 @@ export function RunSimulation({
     // `instrument` class swaps the palette for this subtree (see globals.css);
     // nothing inside needs to know which context it renders into.
     <div className="flex flex-col gap-5 rounded-xl border border-border bg-bg-card p-5">
-      <p className="rounded-lg bg-accent-soft px-4 py-3 text-sm text-text-secondary">Explanatory scene. Animation phases illustrate a mechanism; they do not show a computed molecular trajectory or validated enzyme pathway.</p>
+      <p className="rounded-lg bg-accent-soft px-4 py-3 text-sm text-text-secondary">Built on supplied sequences, recorded edit computations and optional public structures. The interaction is illustrative, not a validated enzyme trajectory or experimental outcome.</p>
       {/* phase timeline */}
       <div className="flex items-center gap-2">
         {PHASES.map((p, i) => (
@@ -116,6 +111,8 @@ export function RunSimulation({
         <span className="text-accent">{current.label}</span> — {current.desc}
       </p>
 
+      <CasaiScene sequence={sequence} editedSequence={editedSequence} geometry={geometry} phase={phase} />
+
       {/* The real bases, annotated at their real coordinates — the mechanism
           panels below are schematic, this one is the run's actual output. */}
       <figure className="flex flex-col rounded-lg border border-border bg-bg-card">
@@ -146,20 +143,7 @@ export function RunSimulation({
           </div>
         </figure>
 
-        <figure className="flex flex-col rounded-lg border border-border bg-bg-card">
-          <figcaption className="flex items-center justify-between border-b border-border px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase text-muted">
-            <span>3D · Molecular structure</span>
-            <span className="text-accent">drag to rotate</span>
-          </figcaption>
-          <div className="h-[300px] p-2">
-            {loadStructure ? <Molecule3D phase={phase} pdbId={pdbId} /> : (
-              <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
-                <p className="max-w-sm text-sm text-text-secondary">Load a public example structure from RCSB PDB. It illustrates the mechanism and is not a structure mapped to this run.</p>
-                <button type="button" onClick={() => setLoadStructure(true)} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">Load public 3D example</button>
-              </div>
-            )}
-          </div>
-        </figure>
+        <ReferenceStructurePanel phase={phase} pdbId={pdbId} />
       </div>
 
       {editedSequence && (

@@ -82,6 +82,33 @@ _GUIDE = "ACGTACGTACGTACGTACGT"
 _SEQUENCE = "TT" + _GUIDE + "CGG" + "TT"  # guide at index 2, PAM "CGG" immediately 3'
 
 
+def test_unverifiable_confirmed_source_blocks_before_run_insert(monkeypatch, tmp_path):
+    from app.modules.information_processor.workspace import LocalWorkspace
+
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE,
+                           "confirmed_version_id": "sha256:" + "a" * 64,
+                           "confirmed_record_id": "record"})
+    monkeypatch.setattr(service, "LocalWorkspace", lambda _: LocalWorkspace(tmp_path / "empty"))
+    with pytest.raises(service.ConfirmedSourceError, match="no run was submitted"):
+        service.create_run("ro-1", "CBE edit")
+    assert sb.inserts["runs"] == []
+
+
+def test_confirmed_source_binding_is_recorded_in_pipeline_provenance(monkeypatch):
+    spec = EditSpec(edit_type="CBE", guide_rna=_GUIDE, strand="+", rationale="test")
+    ro = {"research_object_id": "ro-1", "sequence": _SEQUENCE,
+          "confirmed_version_id": "sha256:" + "a" * 64, "confirmed_record_id": "record"}
+    sb = _wire(monkeypatch, ro, spec=spec, problems=[])
+    seen = []
+    monkeypatch.setattr(service, "LocalWorkspace", lambda _: object())
+    monkeypatch.setattr(service, "validate_run_source", lambda row, _: seen.append(row))
+    service.create_run("ro-1", "CBE edit")
+    event = next(event for event in sb.events if event["event_type"] == "input_validated")
+    assert seen == [ro]
+    assert event["payload"]["confirmed_version_id"] == ro["confirmed_version_id"]
+    assert event["payload"]["confirmed_record_id"] == "record"
+
+
 def _wire(monkeypatch, ro, *, spec=None, problems=None):
     sb = FakeSupabase(ro)
     monkeypatch.setattr(service, "get_supabase", lambda: sb)

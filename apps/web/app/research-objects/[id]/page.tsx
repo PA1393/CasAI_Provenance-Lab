@@ -48,10 +48,11 @@ export default async function ResearchObjectPage({ params }: Props) {
           </h1>
           <Hash value={researchObject.research_object_id} length={16} className="mt-2 block" />
         </div>
-        <StartRunForm researchObjectId={researchObject.research_object_id} />
+        <StartRunForm researchObjectId={researchObject.research_object_id} initialOpen={!!researchObject.confirmed_version_id} />
       </div>
 
       <div className="mt-10">
+        {researchObject.confirmed_version_id && <p className="mb-4 break-all rounded-lg border border-border p-4 text-sm">Confirmed source: {researchObject.confirmed_version_id} · Record: {researchObject.confirmed_record_id}. Enter an objective above to submit a run; preparation alone did not execute one.</p>}
         <ResearchObjectSummary researchObject={researchObject} />
       </div>
 

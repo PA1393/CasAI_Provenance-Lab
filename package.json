@@ -22,7 +22,8 @@
     "typecheck": "turbo run typecheck"
   },
   "overrides": {
-    "postcss": "8.5.31"
+    "postcss": "8.5.31",
+    "body-parser": "2.4.0"
   },
   "devDependencies": {
     "turbo": "^2.5.2",

@@ -41,6 +41,15 @@ fn valid_id(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
 }
 
+fn valid_hash(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    })
+}
+
 fn request_allowed(method: &str, path: &str, body: Option<&str>) -> bool {
     if body.is_some_and(|value| value.len() > MAX_REQUEST_BYTES)
         || (method == "GET" && body.is_some())
@@ -53,8 +62,35 @@ fn request_allowed(method: &str, path: &str, body: Option<&str>) -> bool {
         ("GET" | "POST", ["", "api", "v1", "research-objects" | "runs"]) => true,
         ("GET", ["", "api", "v1", "research-objects" | "runs", id]) => valid_id(id),
         ("GET", ["", "api", "v1", "research-objects", id, "runs"]) => valid_id(id),
-        ("GET", ["", "api", "v1", "runs", id, "provenance" | "results"]) => valid_id(id),
+        (
+            "GET",
+            [
+                "",
+                "api",
+                "v1",
+                "runs",
+                id,
+                "provenance" | "results" | "export",
+            ],
+        ) => valid_id(id),
         ("POST", ["", "api", "v1", "rag", "search"]) => true,
+        ("POST", ["", "api", "v1", "intake", "research-drafts"]) => true,
+        ("POST", ["", "api", "v1", "intake", "datasets", "inspect-text"]) => true,
+        ("GET", ["", "api", "v1", "intake", "research-drafts", id]) => valid_hash(id),
+        ("POST", ["", "api", "v1", "intake", "research-drafts", id, "confirm"]) => valid_hash(id),
+        ("GET", ["", "api", "v1", "intake", "confirmed-versions", id, "fasta"]) => valid_hash(id),
+        (
+            "POST",
+            [
+                "",
+                "api",
+                "v1",
+                "intake",
+                "confirmed-versions",
+                id,
+                "research-objects",
+            ],
+        ) => valid_hash(id),
         _ => false,
     }
 }
@@ -134,11 +170,43 @@ mod tests {
             "/api/v1/runs",
             "/api/v1/research-objects",
             "/api/v1/runs/demo-1/results",
+            "/api/v1/runs/demo-1/export",
             "/api/v1/research-objects/demo-1/runs",
         ] {
             assert!(request_allowed("GET", path, None));
         }
         assert!(request_allowed("POST", "/api/v1/runs", Some("{}")));
+        assert!(request_allowed(
+            "POST",
+            "/api/v1/intake/datasets/inspect-text",
+            Some("{}")
+        ));
+        let hash = format!("sha256:{}", "a".repeat(64));
+        assert!(request_allowed(
+            "GET",
+            &format!("/api/v1/intake/confirmed-versions/{hash}/fasta"),
+            None
+        ));
+        assert!(request_allowed(
+            "POST",
+            &format!("/api/v1/intake/confirmed-versions/{hash}/research-objects"),
+            Some("{}")
+        ));
+        assert!(!request_allowed(
+            "GET",
+            "/api/v1/intake/confirmed-versions/../fasta",
+            None
+        ));
+        assert!(request_allowed(
+            "GET",
+            &format!("/api/v1/intake/research-drafts/{hash}"),
+            None
+        ));
+        assert!(request_allowed(
+            "POST",
+            &format!("/api/v1/intake/research-drafts/{hash}/confirm"),
+            Some("{}")
+        ));
         for (method, path) in [
             ("DELETE", "/api/v1/runs"),
             ("POST", "/health"),
@@ -146,7 +214,7 @@ mod tests {
             ("GET", "/api/v1/runs/../secret"),
             ("GET", "/api/v1/runs/id?token=x"),
             ("GET", "/api/v1/runs/%2fsecret"),
-            ("POST", "/api/v1/intake/research-drafts"),
+            ("POST", "/api/v1/intake/research-drafts/not-a-hash/confirm"),
         ] {
             assert!(!request_allowed(method, path, None));
         }

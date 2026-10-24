@@ -2,7 +2,14 @@ import { afterEach, expect, test } from "bun:test";
 import { checkConnection, DEFAULT_API_URL, fetchApi, hasRequiredDemoRoutes, normalizeApiUrl } from "../src/connection";
 
 const compatible = { paths: {
-  "/api/v1/intake/research-drafts": {}, "/api/v1/guide-maps": {}, "/api/v1/simulation-plans": {},
+  "/api/v1/intake/research-drafts": { post: {} },
+  "/api/v1/intake/research-drafts/{draft_id}": { get: {} },
+  "/api/v1/intake/research-drafts/{draft_id}/confirm": { post: {} },
+  "/api/v1/intake/datasets/inspect-text": { post: {} },
+  "/api/v1/intake/confirmed-versions/{version_id}/fasta": { get: {} },
+  "/api/v1/intake/confirmed-versions/{version_id}/research-objects": { post: {} },
+  "/api/v1/runs/{run_id}/export": { get: {} },
+  "/api/v1/guide-maps": { post: {} }, "/api/v1/simulation-plans": { post: {} },
 } };
 
 const originalFetch = globalThis.fetch;
@@ -46,6 +53,17 @@ test("compatibility checks reject absent, malformed and incomplete route invento
     expect(hasRequiredDemoRoutes(value)).toBe(false);
   }
   expect(hasRequiredDemoRoutes(compatible)).toBe(true);
+});
+
+test("each new desktop action requires its HTTP operation before submissions are enabled", async () => {
+  for (const [path, operation] of Object.entries(compatible.paths)) {
+    for (const replacement of [undefined, {}, { parameters: [] }, { [Object.keys(operation)[0]]: null }]) {
+      const incomplete = { paths: { ...compatible.paths, [path]: replacement } };
+      globalThis.fetch = (async (url) => Response.json(String(url).endsWith("/health") ? { status: "ok" } : incomplete)) as typeof fetch;
+      expect(await checkConnection(DEFAULT_API_URL)).toBe("outdated");
+      await expect(fetchApi(`${DEFAULT_API_URL}/api/v1/runs`, { method: "POST", body: "{}" })).rejects.toThrow("compatibility");
+    }
+  }
 });
 
 test("HTML, unavailable endpoints and network errors are not reported connected", async () => {

@@ -131,7 +131,7 @@ function ContinueCard({
       <section className="flex min-h-[19rem] flex-col rounded-2xl border border-border-strong bg-bg-card p-6 shadow-card sm:p-7">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Continue work</p>
-          <RunStatusBadge status={run.status} />
+          <RunStatusBadge status={run.status} overview />
         </div>
         <h2 className="mt-6 line-clamp-2 text-2xl font-semibold leading-tight text-text">{run.prompt}</h2>
         <p className="mt-2 font-mono text-xs text-muted">{shortId(run.run_id)}</p>
@@ -236,7 +236,7 @@ function RecentRuns({ items, unavailable }: { items: Run[]; unavailable: boolean
                     {humanizeStage(item.current_stage)} · {formatDate(item.created_at)}
                   </span>
                 </span>
-                <RunStatusBadge status={item.status} />
+                <RunStatusBadge status={item.status} overview />
                 <span aria-hidden="true" className="text-muted">→</span>
               </Link>
             </li>

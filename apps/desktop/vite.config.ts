@@ -3,11 +3,21 @@ import { defineConfig } from "vite";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
 import sharedTailwind from "../web/tailwind.config";
+import { molstarFrozenPrototype } from "./src/compat/molstar-frozen-prototype";
 
 const local = (path: string) => fileURLToPath(new URL(path, import.meta.url));
+const molstarCompat = {
+  name: "molstar-frozen-prototype-compat",
+  transform(code: string, id: string) {
+    const result = molstarFrozenPrototype(code, id);
+    return result === null ? null : { code: result, map: null };
+  },
+};
 
 export default defineConfig({
+  plugins: [{ ...molstarCompat, enforce: "pre" }],
   base: "./",
+  optimizeDeps: { rolldownOptions: { plugins: [molstarCompat] } },
   resolve: {
     alias: [
       { find: "next/link", replacement: local("./src/compat/link.tsx") },

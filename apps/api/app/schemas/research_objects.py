@@ -44,6 +44,8 @@ class ResearchObject(BaseModel):
     # Full parsed sequence the base-edit pipeline runs against. Null for research
     # objects created without a FASTA upload.
     sequence: str | None = None
+    confirmed_version_id: str | None = None
+    confirmed_record_id: str | None = None
 
 
 class ResearchObjectsResponse(BaseModel):

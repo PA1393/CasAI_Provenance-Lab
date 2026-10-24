@@ -9,9 +9,9 @@ export function RunProgress({ run, provenance }: { run: Run; provenance: Provena
         {STAGES.map((stage, index) => {
           const status = stageStatus(stage.key, provenance.filter((event) => event.stage === stage.key), run.current_stage, run.status);
           return (
-            <li key={stage.key} aria-current={status === "running" ? "step" : undefined} className={`flex gap-3 sm:flex-col sm:items-center sm:text-center ${status === "failed" ? "text-accent-red" : status === "running" || status === "completed" ? "text-accent" : "text-muted"}`}>
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-semibold ${status === "running" || status === "completed" ? "border-accent/30 bg-accent-soft" : "border-border"}`}>{status === "completed" ? "✓" : status === "failed" ? "!" : index + 1}</span>
-              <span><span className="block text-xs font-semibold">{stage.label}</span><span className="mt-1 block text-xs capitalize">{status}</span></span>
+            <li key={stage.key} aria-current={status === "running" ? "step" : undefined} className={`flex gap-3 sm:flex-col sm:items-center sm:text-center ${status === "running" || status === "completed" ? "text-accent" : "text-muted"}`}>
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-semibold ${status === "running" || status === "completed" ? "border-accent/30 bg-accent-soft" : "border-border"}`}>{status === "completed" ? "✓" : index + 1}</span>
+              <span><span className="block text-xs font-semibold">{stage.label}</span><span className="mt-1 block text-xs capitalize">{status === "failed" ? "Stopped" : status}</span></span>
             </li>
           );
         })}

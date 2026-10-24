@@ -4,7 +4,10 @@ import logging
 import time
 from datetime import UTC, datetime
 
+from app.core.config import settings
 from app.db import get_supabase
+from app.modules.information_processor.handoff import validate_run_source
+from app.modules.information_processor.workspace import LocalWorkspace, WorkspaceError
 from app.modules.provenance.service import emit
 from app.modules.simulation.engine import apply_base_edit
 from app.modules.simulation.scoring import off_target_score, on_target_score
@@ -14,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 # Base each editor converts, for a human-readable edit summary.
 _EDIT_CHANGE = {"CBE": ("C", "T"), "ABE": ("A", "G")}
+
+
+class ConfirmedSourceError(ValueError):
+    """A linked confirmed input cannot be verified before a run is submitted."""
 
 
 def list_runs() -> list[dict]:
@@ -76,6 +83,14 @@ def create_run(research_object_id: str, prompt: str) -> dict:
         .execute()
     )
     ro = ro_response.data or {}
+
+    if ro.get("confirmed_version_id") or ro.get("confirmed_record_id"):
+        try:
+            validate_run_source(ro, LocalWorkspace(settings.intake_workspace_root))
+        except (ValueError, WorkspaceError) as exc:
+            raise ConfirmedSourceError(
+                "Confirmed source is unavailable or changed; no run was submitted"
+            ) from exc
 
     run = (
         client.table("runs")
@@ -155,6 +170,9 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
         payload={
             "research_object_id": ro.get("research_object_id"),
             "sequence_length": len(sequence),
+            **({"confirmed_version_id": ro["confirmed_version_id"],
+                "confirmed_record_id": ro["confirmed_record_id"]}
+               if ro.get("confirmed_version_id") else {}),
         },
     )
 
