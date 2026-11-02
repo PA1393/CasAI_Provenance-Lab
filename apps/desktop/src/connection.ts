@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { requestTextDownload } from "../../../packages/env/src/download";
 
 // Public deployment address only. Never put API/service credentials in this bundle.
 export const DEFAULT_API_URL = "https://casaiprovenancelab.vercel.app";
@@ -44,6 +45,7 @@ export function hasRequiredDemoRoutes(value: unknown): boolean {
     ["/api/v1/runs/{run_id}/export", "get"],
     ["/api/v1/guide-maps", "post"],
     ["/api/v1/simulation-plans", "post"],
+    ["/api/v1/demo/capabilities", "get"],
   ];
   return required.every(([path, method]) => {
     const operations = (paths as Record<string, unknown>)[path];
@@ -90,15 +92,21 @@ export async function fetchApi(url: string, init?: RequestInit): Promise<Respons
   return new Response(result.body, { status: result.status, headers: { "content-type": "application/json" } });
 }
 
-export async function saveExportText(filename: string, content: string): Promise<"saved" | "cancelled"> {
-  if (!isTauri()) throw new Error("Native export is available in the packaged desktop app.");
+export async function saveExportText(filename: string, content: string): Promise<"saved" | "cancelled" | "requested"> {
+  if (!isTauri()) return requestTextDownload(filename, content);
   const saved = await invoke<boolean>("save_export", { filename, content });
   return saved ? "saved" : "cancelled";
 }
 
-export async function saveFastaText(filename: string, content: string): Promise<"saved" | "cancelled"> {
-  if (!isTauri()) throw new Error("Native save is available in the packaged desktop app.");
+export async function saveFastaText(filename: string, content: string): Promise<"saved" | "cancelled" | "requested"> {
+  if (!isTauri()) return requestTextDownload(filename, content);
   const saved = await invoke<boolean>("save_fasta", { filename, content });
+  return saved ? "saved" : "cancelled";
+}
+
+export async function saveFeedbackText(filename: string, content: string): Promise<"saved" | "cancelled" | "requested"> {
+  if (!isTauri()) return requestTextDownload(filename, content);
+  const saved = await invoke<boolean>("save_feedback", { filename, content });
   return saved ? "saved" : "cancelled";
 }
 

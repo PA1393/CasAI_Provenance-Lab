@@ -66,6 +66,51 @@ fn valid_fasta(filename: &str, content: &str) -> bool {
 }
 
 #[tauri::command]
+pub async fn save_feedback(
+    window: tauri::WebviewWindow,
+    filename: String,
+    content: String,
+) -> Result<bool, String> {
+    let source = window.url().map_err(|_| "Cannot verify caller")?;
+    if !crate::api::app_navigation_allowed(source.scheme(), source.host_str(), source.port())
+        || !valid_feedback(&filename, &content)
+    {
+        return Err("Invalid feedback report or caller".into());
+    }
+    save_selected(window, filename, content, "Save demo feedback", "json").await
+}
+
+fn valid_feedback(filename: &str, content: &str) -> bool {
+    if filename != "casai-demo-feedback.json" || content.len() > 32_000 {
+        return false;
+    }
+    let Ok(serde_json::Value::Object(report)) = serde_json::from_str(content) else {
+        return false;
+    };
+    let fields = [
+        "schema_version",
+        "app_version",
+        "created_at",
+        "platform",
+        "context",
+        "category",
+        "expected",
+        "actual",
+    ];
+    report.len() == fields.len()
+        && fields.iter().all(|key| {
+            report
+                .get(*key)
+                .and_then(|v| v.as_str())
+                .is_some_and(|s| s.len() <= 8_000)
+        })
+        && report["schema_version"] == "casai.demo-feedback.v1"
+        && report["actual"]
+            .as_str()
+            .is_some_and(|s| !s.trim().is_empty())
+}
+
+#[tauri::command]
 pub async fn save_fasta(
     window: tauri::WebviewWindow,
     filename: String,
@@ -77,7 +122,7 @@ pub async fn save_fasta(
     {
         return Err("Invalid confirmed FASTA or caller".into());
     }
-    save_selected(filename, content, "Save normalized FASTA", "fasta").await
+    save_selected(window, filename, content, "Save normalized FASTA", "fasta").await
 }
 
 #[tauri::command]
@@ -92,10 +137,18 @@ pub async fn save_export(
     {
         return Err("Invalid demo export or caller".into());
     }
-    save_selected(filename, content, "Save CasAI recorded data", "json").await
+    save_selected(
+        window,
+        filename,
+        content,
+        "Save CasAI recorded data",
+        "json",
+    )
+    .await
 }
 
 async fn save_selected(
+    window: tauri::WebviewWindow,
     filename: String,
     content: String,
     title: &str,
@@ -104,6 +157,7 @@ async fn save_selected(
     // The webview never supplies an absolute path. Only the user's native Save
     // selection grants a destination, and existing files are never overwritten.
     let Some(file) = rfd::AsyncFileDialog::new()
+        .set_parent(&window)
         .set_title(title)
         .set_file_name(&filename)
         .add_filter("CasAI data", &[extension])
@@ -113,29 +167,76 @@ async fn save_selected(
         return Ok(false);
     };
     let path = file.path().to_owned();
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut target = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)
-            .map_err(|_| {
-                "Choose a new filename; existing files will not be overwritten".to_string()
-            })?;
-        target
-            .write_all(content.as_bytes())
-            .and_then(|_| target.sync_all())
-            .map_err(|_| {
-                "Save failed; inspect the selected file for an incomplete package".to_string()
-            })?;
-        Ok(true)
-    })
-    .await
-    .map_err(|_| "Save task interrupted".to_string())?
+    tauri::async_runtime::spawn_blocking(move || write_new_file(&path, &content))
+        .await
+        .map_err(|_| "Save task interrupted".to_string())?
+}
+
+fn write_new_file(path: &std::path::Path, content: &str) -> Result<bool, String> {
+    let mut target = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .map_err(|_| "Choose a new filename; existing files will not be overwritten".to_string())?;
+    target
+        .write_all(content.as_bytes())
+        .and_then(|_| target.sync_all())
+        .map_err(|_| {
+            "Save failed; inspect the selected file for an incomplete package".to_string()
+        })?;
+    Ok(true)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn saves_exact_utf8_bytes_and_never_overwrites() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "casai-save-test-{}-{nonce}.json",
+            std::process::id()
+        ));
+        let content = "{\"feedback\":\"Test → saved\"}";
+        assert!(write_new_file(&path, content).unwrap());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), content);
+        assert!(write_new_file(&path, "replacement").is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), content);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn feedback_is_bounded_and_has_only_review_fields() {
+        let mut report = serde_json::json!({
+            "schema_version": "casai.demo-feedback.v1", "app_version": "demo-review-1",
+            "created_at": "2026-11-02", "platform": "Test OS", "context": "/runs/demo",
+            "category": "export", "expected": "Save", "actual": "Saved"
+        });
+        assert!(valid_feedback(
+            "casai-demo-feedback.json",
+            &report.to_string()
+        ));
+        assert!(!valid_feedback("../escape.json", &report.to_string()));
+        report["actual"] = serde_json::json!("");
+        assert!(!valid_feedback(
+            "casai-demo-feedback.json",
+            &report.to_string()
+        ));
+        report["actual"] = serde_json::json!("Saved");
+        report["sequence"] = serde_json::json!("Unexpected data");
+        assert!(!valid_feedback(
+            "casai-demo-feedback.json",
+            &report.to_string()
+        ));
+        assert!(!valid_feedback(
+            "casai-demo-feedback.json",
+            &"x".repeat(32_001)
+        ));
+    }
+
     #[test]
     fn only_bounded_run_json_packages_are_accepted() {
         let content = r#"{"schema_version":"casai.demo-export.v1","run_id":"test","files":[{"path":"input.json"},{"path":"provenance.json"},{"path":"results.json"},{"path":"run.json"}]}"#;

@@ -1,10 +1,28 @@
 from fastapi import APIRouter, HTTPException
 
 from app.modules.runs.export import build_run_export
-from app.modules.runs.service import ConfirmedSourceError, create_run, get_run, list_runs
+from app.modules.runs.service import (
+    MAX_RUN_BASES,
+    ConfirmedSourceError,
+    RunInputError,
+    RunInputNotFoundError,
+    create_run,
+    get_run,
+    list_runs,
+)
 from app.schemas.runs import Run, RunCreate, RunsResponse
 
 router = APIRouter(tags=["runs"])
+
+
+@router.get("/demo/capabilities")
+def demo_capabilities() -> dict:
+    return {
+        "schema_version": "casai.demo-capabilities.v1",
+        "run_execution_modes": ["assisted", "demo_cbe", "demo_abe"],
+        "max_sequence_bases": MAX_RUN_BASES,
+        "scientifically_validated": False,
+    }
 
 
 @router.get("/runs/{run_id}/export")
@@ -37,7 +55,12 @@ def post_run(body: RunCreate) -> Run:
         run = create_run(
             research_object_id=body.research_object_id,
             prompt=body.prompt,
+            execution_mode=body.execution_mode,
         )
     except ConfirmedSourceError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RunInputNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RunInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return Run(**run)

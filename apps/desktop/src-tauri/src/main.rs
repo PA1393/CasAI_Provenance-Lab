@@ -26,7 +26,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             api::api_request,
             export::save_export,
-            export::save_fasta
+            export::save_fasta,
+            export::save_feedback
         ])
         .run(tauri::generate_context!())
         .expect("failed to run CasAI Provenance Lab desktop shell");

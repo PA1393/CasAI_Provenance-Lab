@@ -2,8 +2,16 @@
 
 Reviewed against the build brief, implementation request, repository contracts,
 and code on 2026-10-20. Kavin now owns the remaining implementation previously
-allocated to the second contributor. Continue work on `KavNewPR` in PR #56.
+allocated to the second contributor. Work remains on `KavNewPR`; PRs #56/#58
+were historical delivery increments, not proof all remaining milestones are done.
 This records an expanded delivery scope, not a claim that all milestones are done.
+
+Current demo follow-up (2026-11-02): `desktop-demo.md` now describes the reviewer
+path for `demo-review-1`: synthetic starter input, optional public PDB example,
+explicit AI-free CBE/ABE rules, bounded runs, submission recovery and local
+feedback downloads. These changes improve demo reliability; the scientific,
+private-data and production-release milestones below remain separate. Rebuild
+and deploy both client and backend before distributing this increment.
 
 ## Verified repository inventory
 

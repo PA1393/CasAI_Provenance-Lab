@@ -18,7 +18,10 @@ export default function NewResearchObjectPage() {
       </div>
       <div className="mt-7">
         <InputBundleForm />
-        <ProcessorPanel />
+        <details className="mt-7 rounded-xl border border-border bg-bg-card p-4">
+          <summary className="cursor-pointer text-sm font-semibold">More input types &amp; Information Processor</summary>
+          <ProcessorPanel />
+        </details>
       </div>
     </section>
   );

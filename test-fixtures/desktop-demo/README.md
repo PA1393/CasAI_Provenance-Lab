@@ -10,10 +10,19 @@ For an isolated deterministic engine check, use the guide
 The known editable C positions in the forward target are 8 and 10. Verify this
 with the existing engine/mapping tests; do not treat it as editing efficacy.
 
-An example UI prompt is: “Synthetic software test only: use a CBE C-to-T edit
-with guide AAACACAAAAAAAAAAAAAA and PAM NGG.” The current run flow may invoke
-the hosted LLM/retrieval services, so model interpretation is not guaranteed by
-this fixture. Check the actual output/provenance and report failures honestly.
+In the demo-review-1 client, choose **Use synthetic example** on Add input,
+Review, then save without a PDB ID. Open Start Run, choose **Rule-based demo ·
+C → T**, and enter a run label. The server uses its real deterministic guide
+selection/edit/scoring pipeline without AI or retrieval. CBE changes positions
+8 and 10, yielding `TTTTAAATATAAAAAAAAAAAAAAAGGTTTT`. ABE is available separately;
+the label never controls its editor or biological objective. These modes need
+the matching backend's `/api/v1/demo/capabilities` route and database access.
+
+The separate **AI-assisted objective** mode still invokes configured AI/retrieval
+services and may fail or resolve a different candidate. It does not silently
+replace the selected rule-based path. Target-window annotations are metadata;
+the current run pipeline searches the full supplied sequence. All demo runs are
+limited to 5,000 bases. Review actual results and provenance, including failures.
 
 `4UN3` is only a separately selected public viewer example. It does not describe
 this artificial sequence or validate its interaction with an enzyme. Follow

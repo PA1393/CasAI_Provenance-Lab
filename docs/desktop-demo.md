@@ -4,6 +4,99 @@ This is an internet-connected concept demo, not an offline scientific simulator
 or a signed public release. The UI is embedded in a Tauri executable; users do
 not need Node, Bun, Python or a local web server to launch a built package.
 
+## Current reviewer workflow: demo-review-1 (2026-11-02)
+
+This section supersedes the historical rehearsal instructions below for the
+new local increment. It requires rebuilding the app and deploying the matching
+API before distribution; the older downloaded installers do not gain these
+changes automatically.
+
+1. Open **Inputs → Add input → Use synthetic example**. Review the 31-base
+   artificial sequence, then save. The PDB field is optional and represents a
+   separate public example; it is not evidence of a match to the input.
+2. Open **Start Run**, choose a rule-based C → T or A → G demo, and enter a label.
+   These modes use the real guide/edit/scoring pipeline without AI or retrieval.
+   They need internet and database access. The label is not interpreted as an
+   experimental objective. The first compatible NGG site and guide positions
+   4–8 are used across the full saved sequence; target-window annotations are
+   metadata and do not constrain editing. The API records this policy, the mode,
+   guide, PAM and window in provenance. Every run is capped at 5,000 bases.
+3. Inspect Summary, Provenance and 3D interaction. Scores remain unvalidated
+   heuristics; a no-compatible-site outcome is a real failed run with no invented
+   result. AI-assisted objectives remain a separate, explicitly selected mode.
+4. Export recorded data after the run reaches a terminal state. The app checks
+   all document checksums. Native saving requests a user-selected new destination
+   and never overwrites an existing file. Browser previews use browser downloads;
+   allow the requested download if the browser prompts, and inspect Downloads.
+5. Open **Demo help & feedback** in the header. Save your expected/actual behavior
+   as a JSON report and share it manually with the reviewer. It contains the demo
+   version, platform, screen/record ID and typed notes. No sequence/run payload,
+   credential, screenshot or log is automatically collected or transmitted.
+   Notes remain in memory only; navigating/reloading can discard unsaved notes.
+
+The API advertises supported modes at `/api/v1/demo/capabilities`; new desktop
+clients require that route before enabling writes, preventing older APIs from
+silently ignoring the execution mode. Web run setup checks the same capability.
+HTTP/network errors are distinguished, reads/writes have bounded timeouts, and
+uncertain submissions direct the user to inspect saved work before retrying.
+Server error bodies are not copied into the UI. Save failures distinguish package
+verification from possible partial filesystem writes.
+
+Release limits remain: synthetic/public data only, no authenticated ownership
+boundary, persistent shared storage required for confirmed-workspace handoff,
+and no validated molecular dynamics. Workflow artifacts require GitHub login and
+expire; share the GitHub run/artifact page rather than a temporary Azure blob URL.
+Public release publishing/signing is a separate step.
+
+### Evidence and remaining distribution checks for demo-review-1
+
+The isolated browser rehearsal used the actual API, guide selection, editing,
+scoring, summary and export code with a disposable in-memory database. It saved
+the synthetic input without a PDB ID, completed a CBE run with edits at 8/10,
+showed the edited base in the interactive sequence scene, and downloaded the
+four-document JSON package. Every exported document's checksum was reverified
+from the downloaded file. No live research objects/runs were created or modified,
+and the test server disabled assisted AI calls. API tests also cover the ABE
+fixture, no-site failures, non-DNA/oversized input and recorded execution policy.
+
+The installed Mac app opened the feedback panel and native Save dialog; Cancel
+returned safely with no file written. The picker stayed disabled with empty
+directory listings in this test session, including after explicit window
+parenting. Its cause is not established, so a successful native interactive save
+is still a distribution gate. A separate Rust disk test verifies exact UTF-8
+writes and rejects overwrites. Small verified run packages and feedback reports
+can now be shown as JSON for manual copying if a download/save is blocked.
+Browser feedback reported a download request; no completed feedback file was
+verified. Do not present either observation as a successful native save.
+The final packaged Mac build did generate and display the complete feedback JSON
+through **Show report text**, verifying that the manual-copy fallback remains
+usable while native saving is unresolved.
+It also retrieved a historical terminal-run export from the live backend,
+verified its document checksums, reached Save As, and displayed the verified
+package through the manual-copy control after cancellation. This was read-only
+against existing demo records and is still not evidence of a completed native
+filesystem save.
+
+The existing live API returned an export for a completed historical run, and its
+route inventory included prior intake/export features. It still needs the new
+capabilities endpoint and run modes deployed for this increment; the new Mac
+startup gate correctly disabled writes against that older deployment. Persistent
+workspace storage and migration 007 remain required for confirmed-input handoff.
+The primary synthetic FASTA demo avoids that local-workspace dependency.
+
+Backend lint/tests, web behavior/typecheck/lint/build, desktop checks, native
+boundary/disk tests and ad-hoc Mac packaging are recorded in the final handoff.
+Windows/Linux builds and interactive testing must run again for these changes.
+Existing GitHub artifacts remain the previous build; no release, backend deploy
+or database migration is performed by saving these changes locally.
+
+Final local validation: 606 backend tests, 35 web behavior tests under Bun 1.3.9,
+17 desktop tests and seven native Rust tests (665 total); backend/frontend lint,
+web/desktop type checks and production builds; Mac release packaging and strict
+ad-hoc signature verification passed. The unsuppressed high-severity JavaScript
+dependency audit passed. These checks do not establish scientific accuracy or
+complete the native picker/platform distribution checks described above.
+
 ## Architecture and security boundary
 
 - `apps/desktop` builds a static React client with Vite. It reuses the existing

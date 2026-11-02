@@ -28,6 +28,7 @@ function nativeMock() {
         "/api/v1/intake/confirmed-versions/{version_id}/fasta": { get: {} },
         "/api/v1/intake/confirmed-versions/{version_id}/research-objects": { post: {} },
         "/api/v1/runs/{run_id}/export": { get: {} },
+        "/api/v1/demo/capabilities": { get: {} },
         "/api/v1/guide-maps": { post: {} }, "/api/v1/simulation-plans": { post: {} },
       } }
       : { run_id: "synthetic-test" };

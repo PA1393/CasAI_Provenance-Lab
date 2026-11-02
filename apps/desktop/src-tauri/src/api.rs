@@ -59,6 +59,7 @@ fn request_allowed(method: &str, path: &str, body: Option<&str>) -> bool {
     let parts: Vec<_> = path.split('/').collect();
     match (method, parts.as_slice()) {
         ("GET", ["", "health" | "openapi.json"]) => true,
+        ("GET", ["", "api", "v1", "demo", "capabilities"]) => true,
         ("GET" | "POST", ["", "api", "v1", "research-objects" | "runs"]) => true,
         ("GET", ["", "api", "v1", "research-objects" | "runs", id]) => valid_id(id),
         ("GET", ["", "api", "v1", "research-objects", id, "runs"]) => valid_id(id),
@@ -167,6 +168,7 @@ mod tests {
         for path in [
             "/health",
             "/openapi.json",
+            "/api/v1/demo/capabilities",
             "/api/v1/runs",
             "/api/v1/research-objects",
             "/api/v1/runs/demo-1/results",

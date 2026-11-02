@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requestTextDownload } from "./download";
 
 const publicEnvSchema = z.object({
   NEXT_PUBLIC_API_BASE_URL: z.string().url().default("http://127.0.0.1:8000"),
@@ -17,13 +18,9 @@ export function fetchApi(url: string, init?: RequestInit): Promise<Response> {
 }
 
 export async function saveExportText(filename: string, content: string): Promise<"requested" | "saved" | "cancelled"> {
-  const url = URL.createObjectURL(new Blob([content], { type: filename.endsWith(".fasta") ? "text/plain;charset=utf-8" : "application/json" }));
-  const anchor = document.createElement("a");
-  anchor.href = url; anchor.download = filename;
-  document.body.appendChild(anchor); anchor.click(); anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
-  return "requested";
+  return requestTextDownload(filename, content);
 }
 
 export const saveFastaText = saveExportText;
+export const saveFeedbackText = saveExportText;
 

@@ -1,4 +1,5 @@
 import { fetchApi, getPublicEnv } from "@casai/env";
+import { ApiError } from "./errors";
 import type { DemoExport } from "@/lib/demo-export";
 import type { StoredDraft, Confirmation, DatasetInspection, ConfirmedFasta } from "@/lib/intake";
 
@@ -56,6 +57,7 @@ export type Run = {
 export type RunCreate = {
   research_object_id: string;
   prompt: string;
+  execution_mode?: "assisted" | "demo_cbe" | "demo_abe";
 };
 
 export type ProvenanceEvent = {
@@ -90,12 +92,26 @@ function apiUrl(path: string): string {
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const signal = (init?.method ?? "GET") === "GET" ? AbortSignal.timeout(15_000) : undefined;
-  const response = await fetchApi(apiUrl(path), { cache: "no-store", signal, ...init });
-  if (!response.ok) {
-    throw new Error(`API error ${response.status}: ${path}`);
+  const writing = (init?.method ?? "GET") !== "GET";
+  const signal = init?.signal ?? AbortSignal.timeout(writing ? 120_000 : 15_000);
+  let response: Response;
+  try {
+    response = await fetchApi(apiUrl(path), {
+      cache: "no-store", credentials: "omit", redirect: "error", ...init, signal,
+    });
+  } catch {
+    throw new ApiError(null, writing);
   }
-  return response.json() as Promise<T>;
+  if (!response.ok) throw new ApiError(response.status, writing && response.status >= 500);
+  try { return await response.json() as T; }
+  catch { throw new ApiError(null, writing); }
+}
+
+export async function getDemoCapabilities(): Promise<boolean> {
+  const data = await apiFetch<{ schema_version: string; run_execution_modes: string[]; max_sequence_bases: number }>("/api/v1/demo/capabilities");
+  return data.schema_version === "casai.demo-capabilities.v1" &&
+    Array.isArray(data.run_execution_modes) && ["demo_cbe", "demo_abe"].every(mode => data.run_execution_modes.includes(mode)) &&
+    data.max_sequence_bases === 5000;
 }
 
 export function storeIntakeDraft(body: Record<string, unknown>): Promise<StoredDraft> {
