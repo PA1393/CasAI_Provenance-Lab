@@ -8,7 +8,7 @@ export default function NewResearchObjectPage() {
         <div>
           <p className="text-sm font-semibold text-accent">Sequence intake</p>
           <h1 className="mt-1 max-w-3xl font-serif-display text-3xl text-text sm:text-4xl">
-            Add input
+            Add research
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary sm:text-base">
             Choose a FASTA sequence, check its details, and confirm.

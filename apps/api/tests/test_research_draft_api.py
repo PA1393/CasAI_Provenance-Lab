@@ -103,7 +103,8 @@ def test_confirm_exact_stored_draft_and_reopen_version(client):
     body = response.json()
     assert body["status"] == "confirmed"
     assert body["executable"] is True
-    assert body["approved_by"] == "researcher-01"
+    # Approval records the verified account, not the caller's asserted actor_id.
+    assert body["approved_by"] == "11111111-1111-4111-8111-111111111111"
     assert "ACGT" not in response.text
     assert workspace.load_confirmed_version(body["version_id"]).version_id == body["version_id"]
 

@@ -1,5 +1,52 @@
 # Desktop demo: build, launch and rehearsal
 
+## Active no-login demo and explicit run issues
+
+This supersedes the account increment below. Login is preserved but deferred.
+The default ACCESS_MODE=demo mounts the product without sign-in and uses empty
+demo_* tables plus a separate demo/ processor workspace. Historical/personal
+records are not copied. This is shared demo data, not private account storage;
+use public/synthetic inputs only.
+
+Apply migration 009 after core migrations 001–007, deploy the matching API and
+web client, and rebuild installers. Migration 008 is optional until accounts
+are deliberately enabled later. The run issue object records stage, reason code,
+plain-language explanation and next step; UI badges no longer say only "failed."
+Vault no-matches, unavailable services, missing configuration, unclear objectives
+and incompatible guide sites remain distinct. No-match coverage is only a
+similarity-search result, not a scientific impossibility claim.
+
+The Sources tab reads the actual intent-resolution provenance record rather than
+an unrelated simulation event. Rule-based runs explicitly state that no vault
+was used; source similarity is not displayed as an accuracy percentage.
+See [demo release checklist](demo-release-checklist.txt) for live release gates.
+
+## Deferred personal accounts increment (2026-11-02, not deployed)
+
+This increment supersedes the no-auth behavior described in older sections.
+Sign-in is now required for research, runs, provenance, exports and processor
+workspaces. Apply migration 008 and follow
+[personal workspace setup](personal-workspace-setup.txt) before distributing
+updated installers. Existing shared records are preserved but remain unowned
+and hidden. No live migration, deployment, account provisioning or Windows/Linux
+installer rebuild has been performed for this increment.
+
+The workbench no longer includes shared recent-input/recent-run panels. It has
+Add research and personal folders. Inputs and runs may be filed independently.
+The run form restates the selected rule-based/assisted mode and requires
+confirmation before Submit. This is transparent rule-based clarification,
+not a second AI model or a biological validation step. The completion-rate
+denominator is completed + failed runs, excluding pending work. Counts come
+from exact user-scoped database counts, not a paginated list of recent runs.
+
+Validation includes an in-memory PostgreSQL migration/RLS rehearsal and a
+two-account UI rehearsal using the actual CasAI API/pipeline with a disposable
+identity-provider/database fixture. Account A created a folder, uploaded a
+synthetic input, confirmed a CBE run, obtained recorded edits at 8/10, filed
+the input and run, and saw 1/1 workflow completion. Account B saw neither its
+folder nor records, and could not open A's direct run link. This is local test
+evidence, not verification of hosted Supabase deployment or scientific accuracy.
+
 This is an internet-connected concept demo, not an offline scientific simulator
 or a signed public release. The UI is embedded in a Tauri executable; users do
 not need Node, Bun, Python or a local web server to launch a built package.

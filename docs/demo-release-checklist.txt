@@ -1,0 +1,113 @@
+CasAI — active no-login demo release checklist
+============================================
+
+CURRENT LOCAL BEHAVIOR
+- No login prompt when ACCESS_MODE=demo (the default).
+- Shared, separately stored demo inputs/runs/folders; do not use private data.
+- Existing personal/legacy data stays in its original tables and is not copied.
+- Preserved optional account implementation and migration 008 for later.
+- Explicit issue stage/code/explanation/next step on stopped runs and exports.
+- Vault no-matches does not masquerade as a provider outage, or vice versa.
+- Real no-edit outcomes do not become fabricated successful results.
+- Exact workflow-completion statistics are not biological success percentages.
+- Sources are preserved from the actual analysis result and shown from provenance.
+- No external references are downloaded automatically.
+- Connection indicator distinguishes explicitly reported temporary storage from
+  a configured Supabase adapter; localhost alone does not imply temporary data.
+  It checks API capabilities every 30 seconds, not database/scientific accuracy.
+- All four result tabs wrap into a two-column layout on narrow screens.
+- Score help explains GC/homopolymer scoring, zero values and sequence-only,
+  PAM-agnostic off-target limitations without modifying the recorded scores.
+- Browser exports say download requested, not saved; verified JSON is opened
+  automatically as a fallback. Native confirmed writes remain distinct.
+- Demo help includes a session-only reviewer checklist and feedback report.
+
+READ-ONLY HOSTED PREFLIGHT
+  bun scripts/check-demo-deployment.ts https://your-api-host
+This checks /health and /api/v1/demo/capabilities without credentials, redirects
+or research-record reads/writes. It does NOT certify database migrations,
+durability or authorization. Use a dedicated authorized staging workspace for
+the real deployment acceptance steps below; never seed hosted researcher data.
+Observed 2026-11-07: casaiprovenancelab.vercel.app /health returned 200/ok,
+but /api/v1/demo/capabilities returned 404. Hosted contract verification remains
+blocked until the matching API is deployed. No hosted records were modified.
+
+DEPLOYMENT REQUIRED BEFORE DISTRIBUTION
+1. Back up and review the staging schema. Ensure core migrations 001–007 have
+   been applied. Apply 009_isolated_demo_and_run_issues.sql once. 008 is optional
+   while accounts are deferred. 009 creates empty demo tables; it does not copy,
+   publish or delete historical/personal rows.
+2. Configure server-only SUPABASE_URL and SUPABASE_SERVICE_KEY, ACCESS_MODE=demo,
+   explicit HTTPS CORS and a nonzero production rate limit.
+3. Configure OPENAI_API_KEY/provider availability and reviewed vault content if
+   assisted analysis is to be demonstrated. Without it, the rule-based modes
+   remain usable; assisted runs explain the missing dependency.
+4. Use persistent shared processor storage when the backend has multiple
+   instances. Keep demo/ separate from users/ and from old shared artifacts.
+5. Deploy the corresponding API and web client. Rebuild the desktop package for
+   each OS; older downloaded installers do not pick up code changes themselves.
+
+REAL DEPLOYMENT ACCEPTANCE (not claimed by local unit tests)
+- Open installed app on macOS, Windows and Linux without a local dev server.
+- Confirm no sign-in appears and the shared-demo warning is visible.
+- Add synthetic FASTA, review/confirm, create folder, confirm rule-mode intent.
+- Run CBE and ABE; inspect edited bases, summary, provenance and 3D controls.
+- Try no-PAM input: see Guide selection and a specific next step, not plain Failed.
+- Try a missing/unavailable vault: distinguish configuration/outage/no evidence.
+- Check a successful assisted objective against genuine reviewed vault content.
+- Export the exact stored data and verify hashes; complete native Save As on
+   each OS. Previous Mac picker restrictions have not been conclusively resolved.
+- Restart/redeploy the API and verify required processor artifacts are durable.
+- Verify the demo API never exposes personal/legacy rows via lists, IDs or exports.
+
+SCIENTIFIC/PRODUCTION LIMITS THAT REMAIN
+This is a software demonstration, not yet an experimentally validated CRISPR
+prediction product. Heuristic scores lack a calibrated accuracy percentage.
+Interactive scenes do not compute validated molecular dynamics or enzyme paths.
+Reference structures are deposited coordinates, not proof of an input-matched
+editing interaction. External engines require installed tools, selected/licensed
+references, explicit adapters and benchmarks before scientific accuracy claims.
+No-login demo data is accessible to anyone with the endpoint; do not upload
+confidential researcher data. Production multi-user privacy requires the saved
+account feature plus independent deployment/security/storage verification.
+
+LOCAL TEST COMMANDS
+bun run check:api
+bun test apps/web/lib
+bun run test:ownership
+bun run check:web
+bun test apps/desktop/tests
+bun run --cwd apps/desktop typecheck
+bun run --cwd apps/desktop build
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+The saved integration runner scripts/rehearse-demo-http.ts is restricted to
+explicitly marked, disposable loopback fixtures. It must not be pointed at
+hosted research data. Its local rehearsal passed no-login access, real rule
+editing, distinct failures with zero fabricated results, folder moves, export
+hash verification and processor confirmation/handoff. The fixture uses RAM
+persistence and disables external AI. It is not hosted-provider acceptance.
+To repeat it, start the disposable server in one terminal:
+  CASAI_DISPOSABLE_REHEARSAL=1 apps/api/.venv/bin/python test-fixtures/desktop-demo/rehearsal_server.py
+Then run in another terminal:
+  bun scripts/rehearse-demo-http.ts http://127.0.0.1:8815 --write-disposable-demo-data
+Stop the fixture afterward. It rejects import/non-opt-in startup, binds only
+loopback, uses RAM rows and temporary processor files, and disables hosted AI.
+
+PUSH/RELEASE
+No migration, provider configuration, deployment, push or installer publication
+is performed by this checklist. Verify actual Git/PR state independently; this
+document is not proof of a completed push or release.
+
+LOCAL VALIDATION AT THIS HANDOFF
+Latest usability pass: 650 backend tests, 52 web behavior tests and 17 desktop
+behavior tests passed (719 in this pass). The previous baseline also passed
+7 native Rust tests; Rust code was not changed by the usability pass.
+Backend lint, frontend typecheck/lint, Next.js and desktop Vite builds passed.
+PostgreSQL rehearsals passed both with and without deferred migration 008.
+The guarded loopback HTTP integration runner passed against the actual routes,
+parser, processor, edit engine, scoring and export code with RAM persistence.
+Browser inspection confirmed no-login startup, stage/reason/next-step cards,
+honest Sources messages and downstream steps no longer implying pending work.
+No hosted migration, external provider/engine benchmark, new cross-OS installer
+acceptance or experimental accuracy claim is established by these checks.

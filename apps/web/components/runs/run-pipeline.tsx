@@ -1,6 +1,6 @@
 import type { ProvenanceEvent, Run } from "@/lib/api/client";
 import { STAGES } from "../../lib/stages";
-import { stageStatus } from "../../lib/run-progress";
+import { stageStatus, stageOutcomeLabel } from "../../lib/run-progress";
 
 type Props = {
   provenance: ProvenanceEvent[];
@@ -60,7 +60,7 @@ export function RunPipeline({ provenance, currentStage, runStatus }: Props) {
                 </span>
               )}
             </div>
-            <p className="ml-9 mt-2 text-xs capitalize text-text-secondary">{state === "failed" ? "Stopped — review the recorded event below" : state === "pending" ? "No completion evidence recorded" : state}</p>
+            <p className="ml-9 mt-2 text-xs capitalize text-text-secondary">{state === "failed" ? "Stopped — review the recorded event below" : stageOutcomeLabel(state, stage.key, runStatus)}</p>
             {stage.key === "summary" && state === "completed" && <p className="ml-9 mt-2 text-sm text-text-secondary">Run reached its terminal summary state. The Summary tab displays the edit summary stored with the result.</p>}
 
             {events.map((event) => (

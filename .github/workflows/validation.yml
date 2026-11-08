@@ -48,5 +48,6 @@ jobs:
           bun-version: "1.3.9"
       - run: bun install --frozen-lockfile
       - run: bun test apps/web/lib
+      - run: bun run test:ownership
       - run: bun run check:web
       - run: bun run build

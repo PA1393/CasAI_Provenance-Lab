@@ -1,6 +1,6 @@
 import type { ProvenanceEvent, Run } from "@/lib/api/client";
 import { STAGES } from "@/lib/stages";
-import { stageStatus } from "@/lib/run-progress";
+import { stageStatus, stageOutcomeLabel } from "@/lib/run-progress";
 
 export function RunProgress({ run, provenance }: { run: Run; provenance: ProvenanceEvent[] }) {
   return (
@@ -11,7 +11,7 @@ export function RunProgress({ run, provenance }: { run: Run; provenance: Provena
           return (
             <li key={stage.key} aria-current={status === "running" ? "step" : undefined} className={`flex gap-3 sm:flex-col sm:items-center sm:text-center ${status === "running" || status === "completed" ? "text-accent" : "text-muted"}`}>
               <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-semibold ${status === "running" || status === "completed" ? "border-accent/30 bg-accent-soft" : "border-border"}`}>{status === "completed" ? "✓" : index + 1}</span>
-              <span><span className="block text-xs font-semibold">{stage.label}</span><span className="mt-1 block text-xs capitalize">{status === "failed" ? "Stopped" : status}</span></span>
+              <span><span className="block text-xs font-semibold">{stage.label}</span><span className="mt-1 block text-xs capitalize">{stageOutcomeLabel(status, stage.key, run.status)}</span></span>
             </li>
           );
         })}

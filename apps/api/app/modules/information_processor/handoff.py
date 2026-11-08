@@ -67,7 +67,10 @@ def prepare_run_input(
 ) -> dict:
     version = workspace.load_confirmed_version(version_id)
     sequence = selected_sequence(version, record_id)
-    identity = str(uuid5(NAMESPACE_URL, f"casai:confirmed:{version_id}:{record_id}"))
+    from app.core.auth import current_identity
+    user = current_identity.get()
+    namespace = f"{user.user_id}:" if user is not None else ""
+    identity = str(uuid5(NAMESPACE_URL, f"casai:confirmed:{namespace}{version_id}:{record_id}"))
 
     def verified(row):
         if (row.get("confirmed_version_id") != version_id

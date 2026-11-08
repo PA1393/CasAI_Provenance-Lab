@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     app_name: str = "CasAI Provenance Lab API"
     environment: Literal["development", "test", "production"] = "development"
     api_prefix: str = "/api/v1"
+    # Demo is deliberately a separate, non-private data namespace. Accounts are deferred.
+    access_mode: Literal["demo", "accounts"] = "demo"
     cors_origin: str = "http://localhost:3000"
     max_request_bytes: int = 12_000_000
     rate_limit_requests_per_minute: int = 0

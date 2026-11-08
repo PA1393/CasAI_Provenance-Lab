@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createRun, getDemoCapabilities } from "../../lib/api/client";
 import { ApiError, submissionMayExist } from "../../lib/api/errors";
+import { clarifyPrompt } from "../../lib/prompt-clarification";
 
 type Props = {
   researchObjectId: string;
@@ -20,6 +21,10 @@ export function StartRunForm({ researchObjectId, initialOpen = false }: Props) {
   const [mode, setMode] = useState<"demo_cbe" | "demo_abe" | "assisted">("demo_cbe");
   const [compatible, setCompatible] = useState<boolean | null>(null);
   const [uncertain, setUncertain] = useState(false);
+  const [confirmed, setConfirmed] = useState<string | null>(null);
+  const clarification = clarifyPrompt(prompt, mode);
+  const confirmationKey = JSON.stringify([researchObjectId, prompt.trim(), mode]);
+  const accepted = confirmed === confirmationKey;
   useEffect(() => {
     if (!open) return;
     let active = true;
@@ -29,7 +34,7 @@ export function StartRunForm({ researchObjectId, initialOpen = false }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (submitting || uncertain || compatible !== true || !prompt.trim()) return;
+    if (submitting || uncertain || compatible !== true || !prompt.trim() || !accepted) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -74,6 +79,17 @@ export function StartRunForm({ researchObjectId, initialOpen = false }: Props) {
         rows={4}
         className="w-full rounded-lg border border-border bg-bg-card px-4 py-3 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none resize-none transition-colors"
       />
+      {clarification && <section aria-label="Confirm your intent" className="rounded-xl border border-border bg-bg-card p-4 text-sm">
+        <p className="font-semibold">Are you looking for this?</p>
+        <p className="mt-2 leading-6 text-text-secondary">{clarification.message}</p>
+        {(clarification.conflict || clarification.requiresChoice) && <p className="mt-2 text-accent-amber">Your text mentions a different editor or both editors. Choose the intended run mode before confirming.</p>}
+        <div className="mt-3 flex flex-wrap gap-3">
+          <button type="button" disabled={submitting || uncertain || clarification.conflict || clarification.requiresChoice} onClick={() => setConfirmed(confirmationKey)} className="rounded border border-accent px-3 py-2 text-accent">{accepted ? "Confirmed" : "Yes, that's right"}</button>
+          <button type="button" disabled={submitting || uncertain} onClick={() => { setConfirmed(null); setPrompt(""); document.getElementById("run-objective")?.focus(); }} className="rounded border border-border px-3 py-2">No, start again</button>
+          <button type="button" disabled={submitting || uncertain} onClick={() => { setConfirmed(null); document.getElementById("run-objective")?.focus(); }} className="rounded border border-border px-3 py-2">Be more specific</button>
+        </div>
+        <p className="mt-3 text-xs text-muted">Rule-based clarification. Confirmation does not start the run; use Submit below.</p>
+      </section>}
       {error && (
         <p role="alert" className="text-xs text-accent-amber">{error}</p>
       )}
@@ -81,7 +97,7 @@ export function StartRunForm({ researchObjectId, initialOpen = false }: Props) {
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={submitting || uncertain || compatible !== true || !prompt.trim()}
+          disabled={submitting || uncertain || compatible !== true || !prompt.trim() || !accepted}
           className="font-mono text-xs tracking-[0.2em] uppercase font-semibold px-5 py-3 rounded bg-accent text-bg hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
           {submitting ? "Starting…" : "Submit"}

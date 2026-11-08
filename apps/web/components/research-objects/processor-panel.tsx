@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getSession } from "../../lib/auth-session";
 import { ConfirmedInputActions } from "./confirmed-input-actions";
 import { confirmIntakeDraft, inspectDatasetText, resumeIntakeDraft, storeIntakeDraft } from "@/lib/api/client";
 import { confirmationBody, INPUT_BYTE_LIMIT, validateTextInput, type IntakeMethod, type StoredDraft, type DatasetInspection } from "@/lib/intake";
@@ -21,7 +22,8 @@ export function ProcessorPanel() {
   const [transcript, setTranscript] = useState("");
   const [assembly, setAssembly] = useState("");
   const [reference, setReference] = useState("");
-  const [actor, setActor] = useState("");
+  const actor = getSession()?.user.id ?? "demo-reviewer-unverified";
+  const draftStorageKey = `casai-last-draft-id:${actor}`;
   const [ack, setAck] = useState(false);
   const [draft, setDraft] = useState<StoredDraft | null>(null);
   const [dataset, setDataset] = useState<DatasetInspection | null>(null);
@@ -56,7 +58,7 @@ export function ProcessorPanel() {
       ...(transcript.trim() ? { transcript: transcript.trim() } : {}),
       ...(assembly.trim() ? { reference_assembly: assembly.trim() } : {}) });
     setDraft(result);
-    try { localStorage.setItem("casai-last-draft-id", result.draft_id); }
+    try { localStorage.setItem(draftStorageKey, result.draft_id); }
     catch { setNotice("Draft stored on the backend; copy its ID to resume. Local preference storage is unavailable."); }
   }
   const report = draft?.draft ?? dataset?.draft;
@@ -86,7 +88,7 @@ export function ProcessorPanel() {
     </fieldset>
     <div className="mt-4 flex flex-wrap gap-3"><button className={button} disabled={busy} onClick={() => void action(inspect)}>{busy ? "Processing…" : evidence ? "Inspect evidence" : "Store and inspect draft"}</button>
       <button className={button} disabled={busy} onClick={() => void action(async () => {
-        let id = ""; try { id = localStorage.getItem("casai-last-draft-id") ?? ""; } catch { /* no stored pointer */ }
+        let id = ""; try { id = localStorage.getItem(draftStorageKey) ?? ""; } catch { /* no stored pointer */ }
         if (!id) throw new Error("No saved draft pointer on this device.");
         invalidate(); setDraft(await resumeIntakeDraft(id));
       })}>Resume last stored draft</button></div>
@@ -95,7 +97,7 @@ export function ProcessorPanel() {
       {dataset && <p>{dataset.draft.record_count} {dataset.draft.data_role} records · Reference checked: {dataset.draft.reference_checked ? "yes" : "no"}. Inspection only; not stored or executable.</p>}
       {report.warnings.map(warning => <p key={warning.code}>{warning.code}: {warning.message}</p>)}
       {report.missing_fields.map(gap => <p key={gap.field}>{gap.requirement}: {gap.field} — {gap.reason} {gap.action}</p>)}
-      {draft && <div className="space-y-3 border-t border-border pt-3"><label className="block">Reviewer attribution (not authentication)<input disabled={busy} className={field} value={actor} onChange={event => { setActor(event.target.value); setVersion(""); }} maxLength={200} /></label><label className="block"><input disabled={busy} type="checkbox" checked={ack} onChange={event => setAck(event.target.checked)} /> I reviewed the records and acknowledge the warnings above.</label><button className={button} disabled={busy || !draft.draft.ready_for_confirmation || !ack || !!version} onClick={() => void action(async () => {
+      {draft && <div className="space-y-3 border-t border-border pt-3"><p>{getSession() ? "Approval will be recorded under your verified account." : "Demo confirmation records an unverified reviewer label, not an authenticated approval."}</p><label className="block"><input disabled={busy} type="checkbox" checked={ack} onChange={event => setAck(event.target.checked)} /> I reviewed the records and acknowledge the warnings above.</label><button className={button} disabled={busy || !actor || !draft.draft.ready_for_confirmation || !ack || !!version} onClick={() => void action(async () => {
         const confirmed = await confirmIntakeDraft(draft.draft_id, confirmationBody(draft.draft, actor, ack)); setVersion(confirmed.version_id);
       })}>Confirm immutable version</button><p>After confirmation, download your normalized records or explicitly prepare a supported DNA record for run setup.</p></div>}
       {version && <p role="status" className="break-all">Confirmed version: {version}</p>}

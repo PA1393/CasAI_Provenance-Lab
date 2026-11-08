@@ -9,17 +9,8 @@ import { RunSimulation } from "@/components/runs/simulation/run-simulation";
 import { extractEditGeometry } from "@/components/runs/simulation/sequence-track";
 import { RagSources } from "@/components/runs/rag-sources";
 import { ExportButton } from "./export-button";
+import { recordedRunSources } from "../../lib/run-sources";
 
-type RagSource = {
-  chunk_id: string | null | undefined;
-  source_key: string;
-  chunk_text: string;
-  similarity: number | null | undefined;
-  source_path?: string | null;
-  source_url?: string | null;
-  source_title?: string | null;
-  source_type?: string | null;
-};
 
 type Props = {
   provenance: ProvenanceEvent[];
@@ -38,13 +29,6 @@ type Props = {
 type Tab = "simulation" | "provenance" | "results" | "sources";
 const tabs: Tab[] = ["results", "simulation", "provenance", "sources"];
 
-function extractRagSources(provenance: ProvenanceEvent[]): RagSource[] {
-  const simulateEvent = provenance.find((e) => e.stage === "simulate");
-  if (!simulateEvent?.payload) return [];
-  const sources = simulateEvent.payload["rag_sources"];
-  if (!Array.isArray(sources)) return [];
-  return sources as RagSource[];
-}
 
 export function RunTabs({
   provenance,
@@ -60,7 +44,7 @@ export function RunTabs({
   provenanceUnavailable,
 }: Props) {
   const [active, setActive] = useState<Tab>("results");
-  const ragSources = extractRagSources(provenance);
+  const ragSources = recordedRunSources(provenance);
   const editGeometry = extractEditGeometry(provenance);
   function selectTab(tab: Tab) {
     setActive(tab);
@@ -70,7 +54,7 @@ export function RunTabs({
   return (
     <div>
       {run && <ExportButton runId={run.run_id} enabled={run.status === "completed" || run.status === "failed"} />}
-      <div role="tablist" aria-label="Run details" className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-bg-card">
+      <div role="tablist" aria-label="Run details" className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-bg-card sm:grid-cols-4">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -88,7 +72,7 @@ export function RunTabs({
               setActive(next);
               document.getElementById(`tab-${next}`)?.focus();
             }}
-            className={`whitespace-nowrap border-b-2 px-5 py-4 text-sm font-semibold transition-colors ${
+            className={`min-w-0 break-words border-b-2 px-2 py-3 text-xs font-semibold transition-colors sm:px-4 sm:py-4 sm:text-sm ${
               active === tab
                 ? "border-accent bg-accent-soft/50 text-accent"
                 : "border-transparent text-text-secondary hover:text-text"
@@ -113,7 +97,7 @@ export function RunTabs({
           provenanceUnavailable ? <p role="alert" className="text-sm text-accent-amber">Provenance could not be loaded. Refresh to try again.</p> : <ProvenanceTab events={provenance} currentStage={currentStage} runStatus={run?.status} />
         )}
         {active === "results" && <RunSummary results={results} run={run} researchObject={researchObject} unavailable={resultsUnavailable} onProvenance={() => selectTab("provenance")} onInteraction={() => selectTab("simulation")}><ResultsTab results={results} /></RunSummary>}
-        {active === "sources" && <RagSources sources={ragSources} />}
+        {active === "sources" && <RagSources sources={ragSources} run={run} provenance={provenance} />}
       </div>
     </div>
   );

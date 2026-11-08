@@ -66,6 +66,6 @@ export function DesktopApp() {
       <p className="mt-3 text-xs text-muted">Only the approved CasAI deployment is allowed. No API keys belong here. Processing needs internet access; use public or synthetic demo inputs only.</p>
       {message && <p role="status" className="mt-3 text-sm text-text-secondary">{message}</p>}
     </form>}
-    {loadedKey === key ? content : <section role="status" className="p-8 text-text-secondary">Loading workspace…</section>}
+    {loadedKey === key ? <div key={key}>{content}</div> : <section role="status" className="p-8 text-text-secondary">Loading workspace…</section>}
   </SiteShell>;
 }

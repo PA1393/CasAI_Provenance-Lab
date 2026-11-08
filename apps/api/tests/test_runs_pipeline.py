@@ -88,7 +88,7 @@ def test_unverifiable_confirmed_source_blocks_before_run_insert(monkeypatch, tmp
     sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE,
                            "confirmed_version_id": "sha256:" + "a" * 64,
                            "confirmed_record_id": "record"})
-    monkeypatch.setattr(service, "LocalWorkspace", lambda _: LocalWorkspace(tmp_path / "empty"))
+    monkeypatch.setattr(service, "get_intake_workspace", lambda: LocalWorkspace(tmp_path / "empty"))
     with pytest.raises(service.ConfirmedSourceError, match="no run was submitted"):
         service.create_run("ro-1", "CBE edit")
     assert sb.inserts["runs"] == []
@@ -100,7 +100,7 @@ def test_confirmed_source_binding_is_recorded_in_pipeline_provenance(monkeypatch
           "confirmed_version_id": "sha256:" + "a" * 64, "confirmed_record_id": "record"}
     sb = _wire(monkeypatch, ro, spec=spec, problems=[])
     seen = []
-    monkeypatch.setattr(service, "LocalWorkspace", lambda _: object())
+    monkeypatch.setattr(service, "get_intake_workspace", lambda: object())
     monkeypatch.setattr(service, "validate_run_source", lambda row, _: seen.append(row))
     service.create_run("ro-1", "CBE edit")
     event = next(event for event in sb.events if event["event_type"] == "input_validated")
@@ -170,7 +170,9 @@ def test_demo_no_site_reports_failure_without_fabricated_results(monkeypatch):
     result = service.create_run("ro-1", "No PAM", "demo_cbe")
     assert result["status"] == "failed"
     assert not sb.inserts["results"]
-    assert "no compatible" in sb.events[-1]["message"]
+    assert "no compatible" in sb.events[-1]["message"].lower()
+    assert result["failure"]["stage"] == "extract"
+    assert result["failure"]["code"] == "no_compatible_site"
 
 
 @pytest.mark.parametrize("sequence,mode", [("A" * 5001, "assisted"),
@@ -303,3 +305,37 @@ def test_unexpected_error_marks_run_failed_and_reraises(monkeypatch) -> None:
     assert sb.run_row["status"] == "failed"
     assert sb.run_row["current_stage"] == "simulate"  # where _advance last landed
     assert sb.inserts["results"] == []
+    assert sb.run_row["failure"]["stage"] == "simulate"
+    assert sb.run_row["failure"]["code"] == "unexpected_error"
+    assert "unexpected engine bug" not in sb.run_row["failure"]["message"]
+
+
+@pytest.mark.parametrize("code", [
+    "vault_no_evidence", "vault_unavailable", "vault_not_configured", "intent_unclear",
+    "ai_unavailable", "intent_invalid", "no_compatible_site",
+])
+def test_analysis_failures_record_distinct_safe_reasons(monkeypatch, code):
+    from app.modules.simulation.spec import AnalysisIssue
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE})
+    def blocked(*args):
+        raise AnalysisIssue(code)
+    monkeypatch.setattr(service, "resolve_edit_spec", blocked)
+    run = service.create_run("ro-1", "Explicit test objective")
+    assert run["status"] == "failed"
+    assert run["failure"]["code"] == code
+    assert run["failure"]["next_step"]
+    assert sb.events[-1]["payload"]["failure"] == run["failure"]
+    assert not sb.inserts["results"]
+
+
+def test_no_edit_is_not_recorded_as_a_successful_edit(monkeypatch):
+    candidate = EditSpec(edit_type="CBE", guide_rna=_GUIDE, strand="+")
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE},
+               spec=candidate, problems=[])
+    monkeypatch.setattr(service, "apply_base_edit", lambda *a, **kw: {
+        "edited": False, "reason": "no editable base",
+    })
+    run = service.create_run("ro-1", "No edit")
+    assert run["failure"]["stage"] == "simulate"
+    assert run["failure"]["code"] == "simulation_no_edit"
+    assert not sb.inserts["results"]

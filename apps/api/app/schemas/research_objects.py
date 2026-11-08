@@ -25,6 +25,7 @@ class ResearchObjectCreate(BaseModel):
 
 
 class ResearchObject(BaseModel):
+    folder_id: str | None = None
     research_object_id: str
     created_at: str
     name: str

@@ -19,6 +19,7 @@
     "lint": "turbo run lint",
     "lint:api": "bun scripts/api-python.ts -m ruff check .",
     "test:api": "bun scripts/api-python.ts -m pytest -c pyproject.toml tests",
+    "test:ownership": "bun scripts/test-workspace-rls.ts",
     "typecheck": "turbo run typecheck"
   },
   "overrides": {
@@ -26,6 +27,7 @@
     "body-parser": "2.4.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.14",
     "turbo": "^2.5.2",
     "typescript": "^5.9.3"
   }

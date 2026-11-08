@@ -11,13 +11,19 @@ type RagSource = {
 
 type Props = {
   sources: RagSource[];
+  run?: Run;
+  provenance?: ProvenanceEvent[];
 };
 
-export function RagSources({ sources }: Props) {
+export function RagSources({ sources, run, provenance = [] }: Props) {
+  const issue = runFailure(run, provenance);
+  const mode = provenance.find(event => event.event_type === "input_validated")?.payload?.execution_mode;
   if (sources.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-border bg-bg-card/50 px-5 py-12 text-center text-sm text-muted">
-        No vault sources retrieved for this run.
+        {mode === "demo_cbe" || mode === "demo_abe" ? "This rule-based demonstration does not use the vault. Its completed status does not establish evidence for the biological objective."
+          : issue?.code.startsWith("vault_") ? `${issue.message} ${issue.next_step}`
+          : "No reference sources were recorded for this run. Vault coverage cannot be inferred from an empty source list."}
       </p>
     );
   }
@@ -53,7 +59,7 @@ export function RagSources({ sources }: Props) {
               )}
               {source.similarity != null && (
                 <span className="font-mono text-[10px] tracking-[0.15em] uppercase text-muted">
-                  {(source.similarity * 100).toFixed(0)}% match
+                  Similarity {source.similarity.toFixed(2)} · not accuracy
                 </span>
               )}
             </div>
@@ -66,3 +72,5 @@ export function RagSources({ sources }: Props) {
     </ul>
   );
 }
+import type { Run, ProvenanceEvent } from "../../lib/api/client";
+import { runFailure } from "../../lib/run-failure";

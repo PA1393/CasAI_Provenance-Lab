@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from app.api.dependencies import get_intake_workspace
+from app.core.auth import current_identity
 from app.modules.information_processor.confirmation import (
     ConfirmationError,
     ConfirmationRequest,
@@ -391,7 +392,9 @@ def confirm_stored_research_draft(
                 source_draft_id=draft_id,
                 expected_normalized_checksum=body.expected_normalized_checksum,
                 expected_artifact_checksum=body.expected_artifact_checksum,
-                actor_id=body.actor_id,
+                actor_id=(
+                    current_identity.get().user_id if current_identity.get() else body.actor_id
+                ),
                 decision=body.decision,
                 acknowledged_warning_codes=body.acknowledged_warning_codes,
             ),
