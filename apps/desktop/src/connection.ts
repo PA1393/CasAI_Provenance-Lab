@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { requestTextDownload } from "../../../packages/env/src/download";
 
 // Public deployment address only. Never put API/service credentials in this bundle.
 export const DEFAULT_API_URL = "https://casaiprovenancelab.vercel.app";
@@ -44,6 +45,14 @@ export function hasRequiredDemoRoutes(value: unknown): boolean {
     ["/api/v1/runs/{run_id}/export", "get"],
     ["/api/v1/guide-maps", "post"],
     ["/api/v1/simulation-plans", "post"],
+    ["/api/v1/demo/capabilities", "get"],
+    ["/api/v1/runs/metrics", "get"],
+    ["/api/v1/auth/login", "post"],
+    ["/api/v1/auth/me", "get"],
+    ["/api/v1/auth/logout", "post"],
+    ["/api/v1/folders", "get"],
+    ["/api/v1/folders", "post"],
+    ["/api/v1/folders/place", "post"],
   ];
   return required.every(([path, method]) => {
     const operations = (paths as Record<string, unknown>)[path];
@@ -70,7 +79,7 @@ export function getPublicEnv() {
 }
 
 export async function fetchApi(url: string, init?: RequestInit): Promise<Response> {
-  if ((init?.method ?? "GET") !== "GET" && !writesEnabled) {
+  if ((init?.method ?? "GET") !== "GET" && !writesEnabled && new URL(url).pathname !== "/api/v1/auth/login") {
     throw new Error("Backend compatibility is not verified. Refresh the connection after deploying the merged API before submitting inputs or runs.");
   }
   if (init?.body != null && typeof init.body !== "string") {
@@ -85,20 +94,27 @@ export async function fetchApi(url: string, init?: RequestInit): Promise<Respons
   const result = await invoke<{ status: number; body: string }>("api_request", {
     method: init?.method ?? "GET", path: target.pathname,
     body: typeof init?.body === "string" ? init.body : null,
+    accessToken: new Headers(init?.headers).get("Authorization")?.replace(/^Bearer /, "") ?? null,
   });
   if (init?.signal?.aborted) throw new DOMException("Request aborted", "AbortError");
   return new Response(result.body, { status: result.status, headers: { "content-type": "application/json" } });
 }
 
-export async function saveExportText(filename: string, content: string): Promise<"saved" | "cancelled"> {
-  if (!isTauri()) throw new Error("Native export is available in the packaged desktop app.");
+export async function saveExportText(filename: string, content: string): Promise<"saved" | "cancelled" | "requested"> {
+  if (!isTauri()) return requestTextDownload(filename, content);
   const saved = await invoke<boolean>("save_export", { filename, content });
   return saved ? "saved" : "cancelled";
 }
 
-export async function saveFastaText(filename: string, content: string): Promise<"saved" | "cancelled"> {
-  if (!isTauri()) throw new Error("Native save is available in the packaged desktop app.");
+export async function saveFastaText(filename: string, content: string): Promise<"saved" | "cancelled" | "requested"> {
+  if (!isTauri()) return requestTextDownload(filename, content);
   const saved = await invoke<boolean>("save_fasta", { filename, content });
+  return saved ? "saved" : "cancelled";
+}
+
+export async function saveFeedbackText(filename: string, content: string): Promise<"saved" | "cancelled" | "requested"> {
+  if (!isTauri()) return requestTextDownload(filename, content);
+  const saved = await invoke<boolean>("save_feedback", { filename, content });
   return saved ? "saved" : "cancelled";
 }
 

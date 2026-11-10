@@ -12,9 +12,9 @@ const run: Run = { run_id: "synthetic-run", research_object_id: "synthetic-input
 
 test("overview badges are neutral without rewriting detailed failure status", () => {
   const overview = renderToStaticMarkup(createElement(RunStatusBadge, { status: "failed", overview: true }));
-  assert(overview.includes("Review run"));
+  assert(overview.includes("Stopped"));
   assert(!overview.includes("text-accent-red"));
-  assert(renderToStaticMarkup(createElement(RunStatusBadge, { status: "failed" })).includes("failed"));
+  assert(renderToStaticMarkup(createElement(RunStatusBadge, { status: "failed", stage: "score" })).includes("Stopped at Scoring"));
 });
 
 test("provenance summary uses the completed run state, not an endless current-stage marker", () => {

@@ -1,0 +1,105 @@
+CasAI personal workspaces — source and deployment handoff
+========================================================
+
+DEFERRED FEATURE — NOT THE ACTIVE DEMO
+Login is saved for later. ACCESS_MODE defaults to demo; the API routes all demo
+domain data to separate demo_* tables and processor storage under demo/.
+The account UI and policies below are enabled only with ACCESS_MODE=accounts,
+migration 008 and a separately reviewed account deployment. These instructions
+must not be mistaken for the current no-login release checklist.
+
+IMPLEMENTED LOCALLY
+Email/password login against the configured Supabase Auth provider; logout;
+server-verified identities; user-JWT database calls with PostgreSQL row policies;
+per-account processor artifact directories and approval attribution; personal
+folders; independent input/run filing; Add research navigation; rule-based prompt
+restatement with Yes / No / Be more specific; exact workflow completion counts.
+Shared recent-input and recent-run home panels have been removed.
+
+SOURCE MAP (paths relative to this repository)
+apps/api/app/core/auth.py: provider verification and request-local identity.
+apps/api/app/api/routes/auth.py: password login, identity and logout.
+apps/api/app/db.py: replace service-role DB authorization with the user JWT.
+apps/api/migrations/008_personal_workspaces.sql: owners, folder relationships,
+  child-record RLS, minimum grants, legacy-record isolation.
+apps/api/app/api/dependencies.py: user-isolated filesystem workspace root.
+apps/api/app/api/routes/folders.py: create/list folders and file inputs/runs.
+apps/api/app/api/routes/runs.py: exact owner-scoped completion metrics.
+apps/web/components/layout/auth-gate.tsx: shared web/desktop sign-in boundary.
+apps/web/lib/auth-session.ts: memory-only session; no persistent tokens/passwords.
+apps/web/components/layout/async-view.tsx: fetch protected views after sign-in.
+apps/web/components/research-objects/folder-library.tsx: project library.
+apps/web/components/runs/start-run-form.tsx: confirm interpretation before Submit.
+apps/web/lib/prompt-clarification.ts: deterministic, explicit restatement rules.
+apps/desktop/src-tauri/src/api.rs: restricted native user-bearer transport.
+scripts/test-workspace-rls.ts: actual PostgreSQL ownership regression rehearsal.
+apps/api/tests/test_auth_workspaces.py and apps/web/lib/workspace.test.ts:
+  authentication, exact metrics, prompt and account-switch regressions.
+
+REQUIRED BEFORE HOSTED USE
+1. Back up the database and inspect the migration in a staging Supabase project.
+   Apply 001–007 if not already installed, then 008 once in a transaction.
+   Never auto-assign old watermelon/test/shared records to new accounts.
+   If historical records must be recovered, verify their ownership separately
+   before an administrator deliberately assigns them. No deletion is needed.
+2. In Supabase Authentication, enable email/password sign-in and provision or
+   invite demo users. Use the provider/admin password-reset flow; this release
+   does not include self-service registration, reset UI, MFA or social login.
+   Never put service keys or passwords in the frontend, repository or screenshots.
+3. Configure server-only SUPABASE_URL and SUPABASE_SERVICE_KEY for this project,
+   HTTPS production settings, explicit CORS_ORIGIN and a nonzero rate limit.
+   Configure provider abuse protection and distributed edge rate limiting too.
+   The extra sign-in limiter is per-process/per-client-IP (10 failed/in-flight
+   attempts/15 minutes; successful attempts are removed from that budget);
+   behind a proxy, configure trusted proxy handling so unrelated users are not
+   all identified as one IP. Do not trust arbitrary client X-Forwarded-For values.
+4. Processor files require durable storage shared by API instances, now partitioned
+   under users/<verified UUID>. Serverless ephemeral storage alone is insufficient
+   for durable confirmed-input handoffs. Do not import the old shared workspace.
+5. Deploy the matching API and web app; rebuild desktop installers on each OS.
+   Coordinate the rollout: old installers will receive 401 on protected endpoints.
+   Check with two genuine provider accounts in staging that every list, direct
+   record, results, provenance, export and processor handoff is owner-isolated.
+   Also confirm both rule modes, AI-mode availability, folders, downloads and
+   actual native Save As on each target platform.
+
+SESSION AND DATA LIMITATIONS
+Sessions are intentionally kept in memory, not browser localStorage. Reload,
+app restart, expiry or sign-out requires sign-in again. User JWTs may remain
+valid until expiry even after provider logout; do not claim instant token revocation.
+CasAI's source snapshot contains code, migrations and synthetic fixtures, not
+hosted user accounts, API keys, uploaded researcher data or dependency binaries.
+Use public/synthetic data for review until deployment isolation, storage,
+backup/restore, secrets handling and retention controls are independently checked.
+The current list/library APIs retain the deployment's response row limits;
+they are not a fully paginated large-project library. Completion statistics use
+exact database counts and are not limited to the rows loaded in those lists.
+
+SCIENTIFIC MEANING
+Completion rate = completed / (completed + failed), as a percentage. Queued and
+running work is excluded. Zero finished runs displays no percentage.
+It measures software workflow completion only, never gene-editing efficiency,
+biological success, safety or clinical/predictive accuracy. Existing heuristic
+scores and illustrative 3D limitations remain unchanged.
+
+CHECKS
+bun run check:api
+bun test apps/web/lib
+bun run test:ownership
+bun run check:web
+bun test apps/desktop/tests
+bun run --cwd apps/desktop typecheck
+bun run --cwd apps/desktop build
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+bun audit --audit-level high
+
+INTELLECTUAL PROPERTY NOTE (not a legal opinion)
+This source is an engineering record, not a patent application or a guarantee
+of patentability, inventorship, ownership or novelty. Login/folders and the
+third-party viewers, providers and libraries should not be presented as inventions
+of CasAI. Record the specific proposed novel mechanism, contributors, dates,
+prior public disclosures and third-party dependencies with a patent professional.
+Existing public repository history may matter; obtain advice before further
+public disclosure. Nothing was filed or published as part of this local change.
+Official background: https://www.uspto.gov/web/offices/pac/mpep/s608.html
+Provider verification: https://supabase.com/docs/reference/python/auth-getuser

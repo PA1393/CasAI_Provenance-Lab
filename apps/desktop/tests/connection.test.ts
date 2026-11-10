@@ -9,6 +9,13 @@ const compatible = { paths: {
   "/api/v1/intake/confirmed-versions/{version_id}/fasta": { get: {} },
   "/api/v1/intake/confirmed-versions/{version_id}/research-objects": { post: {} },
   "/api/v1/runs/{run_id}/export": { get: {} },
+  "/api/v1/demo/capabilities": { get: {} },
+  "/api/v1/runs/metrics": { get: {} },
+  "/api/v1/auth/login": { post: {} },
+  "/api/v1/auth/logout": { post: {} },
+  "/api/v1/auth/me": { get: {} },
+  "/api/v1/folders": { get: {}, post: {} },
+  "/api/v1/folders/place": { post: {} },
   "/api/v1/guide-maps": { post: {} }, "/api/v1/simulation-plans": { post: {} },
 } };
 

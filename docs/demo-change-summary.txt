@@ -1,0 +1,135 @@
+CasAI demo: isolated workspaces, folders, reliable diagnostics and reviewer UX
+==========================================================================
+
+Scope
+-----
+Consolidates the previously unpushed repeatable-demo commit and subsequent
+local backend, desktop, web and usability work. Active behavior is a shared
+NO-LOGIN demonstration. Account functionality is saved but deferred; this is
+not a private multi-user deployment or experimentally validated CRISPR tool.
+
+Backend and storage
+-------------------
+- Explicit CBE/ABE rule-based modes, bounded 5,000-base inputs, first compatible
+  NGG site and guide positions 4–8; objective/label semantics are disclosed.
+- Stage/code/message/next-step failure records survive into run views/exports.
+  Distinguishes invalid inputs, no compatible site, no evidence, missing vault
+  configuration, unavailable providers, invalid analysis and unexpected errors.
+  No-edit outcomes are not fabricated successful edits.
+- Default ACCESS_MODE=demo routes all domain tables to demo_* and processor
+  artifacts to demo/. Personal/legacy rows are neither copied nor exposed.
+- Optional account mode retains verified Supabase sessions, user-JWT RLS,
+  ownership-scoped folders and processor storage for a later release.
+- Exact workflow-completion metrics are not biological success rates.
+- Actual retrieved sources come from intent-resolution provenance; safe URLs
+  and bounded similarity values are shown without claiming predictive accuracy.
+- Database setup failures are safe actionable errors, not raw SQL/provider text.
+
+Web and desktop
+---------------
+- Removes recent/sample panels; Add research, project folders and placement
+  controls replace the old introductory workflow.
+- Intent clarification offers Yes / No / Be more specific before Submit.
+  Confirmation itself never launches a run.
+- Run summaries use recorded data; stopped cards identify the stage and reason.
+  Later stages say Not completed rather than implying work is still pending.
+- All four results tabs remain discoverable on narrow screens; desktop layout
+  and narrow-screen wrapping were exercised in the shared UI.
+- Score help explains GC/homopolymer scoring, real zero values, and sequence-only,
+  PAM-agnostic off-target limitations. Recorded numeric scores are unchanged.
+- Connection indicator checks public capabilities every 30 seconds; explicit
+  adapter metadata distinguishes temporary RAM storage from configured Supabase.
+  Reachability is NOT proof of database durability, security or science accuracy.
+- Verified JSON exports distinguish native confirmed saves, cancellations and
+  browser download requests; bounded manual-copy fallback opens automatically.
+- Native transport permits only reviewed endpoints and explicit user bearer
+  tokens; no browser cookies, arbitrary headers, service keys or redirects.
+  Native save commands retain bounded payloads and no-overwrite behavior.
+- Help contains a session-only reviewer checklist and downloadable feedback;
+  feedback is never sent automatically and excludes sequence/run payloads.
+
+Calls and data flow
+-------------------
+Browser/desktop UI -> shared API client -> permitted fetch/native transport ->
+FastAPI route -> demo table wrapper OR user-JWT RLS -> run/results/provenance.
+Processor: inspect -> review draft/warnings -> confirm exact version -> prepare
+research object or download confirmed FASTA -> explicit run confirmation.
+
+Public connection calls:
+  GET /health
+  GET /openapi.json                    desktop route compatibility inventory
+  GET /api/v1/demo/capabilities         modes, limits, access mode, storage adapter
+
+Research/run calls used by the revised workflow:
+  GET, POST /api/v1/research-objects
+  GET /api/v1/research-objects/{id}
+  GET /api/v1/research-objects/{id}/runs
+  GET, POST /api/v1/runs                execution_mode: assisted/demo_cbe/demo_abe
+  GET /api/v1/runs/{id}
+  GET /api/v1/runs/{id}/results
+  GET /api/v1/runs/{id}/provenance
+  GET /api/v1/runs/{id}/export
+  GET /api/v1/runs/metrics
+  GET, POST /api/v1/folders
+  POST /api/v1/folders/place            kind, record_id, folder_id (or null)
+
+Processor calls retained/integrated:
+  POST /api/v1/intake/detect
+  POST /api/v1/intake/sequences/inspect
+  POST /api/v1/intake/datasets/inspect-text
+  POST /api/v1/intake/datasets/inspect
+  POST /api/v1/intake/references/verify
+  POST /api/v1/intake/research-drafts
+  GET /api/v1/intake/research-drafts/{draft_id}
+  GET /api/v1/intake/research-drafts/{draft_id}/missing
+  POST /api/v1/intake/research-drafts/{draft_id}/confirm
+  GET /api/v1/intake/confirmed-versions/{version_id}/fasta
+  POST /api/v1/intake/confirmed-versions/{version_id}/research-objects
+
+Deferred-account calls (login returns conflict in active demo mode):
+  POST /api/v1/auth/login
+  GET /api/v1/auth/me
+  POST /api/v1/auth/logout
+
+Native commands: api_request, save_export, save_fasta, save_feedback.
+External calls: reviewed Supabase storage; optional configured AI/embedding
+providers and reference-vault match_vault_chunks RPC in assisted mode; optional
+public structure fetch after an explicit click. Rule demos require no AI call.
+The disposable fixture uses RAM/temp files and disables hosted AI entirely.
+
+Migrations / release steps
+-------------------------
+Review and back up the target schema; apply existing 001–007 before new 009.
+009 creates EMPTY isolated demo tables and adds runs.failure; do not reapply
+blindly. Optional 008 establishes account ownership/RLS and is not required
+while login is deferred. Tests cover 009 both with and without 008.
+Use server-only Supabase credentials, explicit HTTPS CORS, rate limits and
+persistent/shared processor storage appropriate to the deployment.
+Deploy matching API + UI and rebuild each native installer before distribution.
+No hosted migrations, data deletions or deployments are performed by this PR.
+
+Verification
+------------
+650 backend tests; 52 web behavior tests; 17 desktop behavior tests; 7 native
+Rust tests (726 total) passed locally. Backend lint, frontend lint/typechecks,
+Next.js production build and desktop Vite build passed. Dependency audit at
+high severity passed. PostgreSQL migration/RLS/isolation rehearsals passed.
+Guarded disposable HTTP rehearsal passed real parser/processor/CBE/ABE/scoring,
+distinct failures, zero fabricated results, folder placement and checked exports.
+Manual UI checks exercised desktop/narrow layouts, reviewer checkbox updates,
+score disclosure and automatic export fallback. No new cross-OS installer or
+native Save As acceptance is established by frontend builds/unit tests alone.
+
+Hosted preflight: /health responds ok, but current public deployment's
+/api/v1/demo/capabilities returned 404 on 2026-11-07. Hosted compatibility,
+Supabase persistence and deployed access isolation remain UNVERIFIED.
+scripts/check-demo-deployment.ts performs read-only public contract checks.
+scripts/rehearse-demo-http.ts rejects non-disposable/non-loopback targets.
+See docs/demo-release-checklist.txt for release acceptance and remaining limits.
+
+Scientific limitations
+----------------------
+Checksums establish byte integrity, not biological correctness. Scores are
+unvalidated heuristics. The interactive sequence scene is illustrative, not
+enzyme dynamics; deposited structures are reference coordinates, not proof of
+input-matched binding/editing. Use public/synthetic data in the shared demo.

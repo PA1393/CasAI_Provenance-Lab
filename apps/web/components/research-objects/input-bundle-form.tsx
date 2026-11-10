@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { createResearchObject } from "@/lib/api/client";
+import { submissionMayExist } from "../../lib/api/errors";
+import { DEMO_FASTA } from "../../lib/demo-fixture";
 import { parseTargetRegion } from "@/lib/uploads/target-region";
 import {
   canReviewUpload,
@@ -42,6 +44,7 @@ export function InputBundleForm() {
   const [reading, setReading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uncertain, setUncertain] = useState(false);
 
   async function inspectFile(selected: File | null) {
     const attempt = ++inspectionId.current;
@@ -79,12 +82,13 @@ export function InputBundleForm() {
   function openReview(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!name.trim()) { setError("Enter a name for this input."); return; }
     if (!canReviewUpload(file, review, reading)) {
       setError("Choose a valid FASTA file before continuing.");
       return;
     }
-    if (!/^[A-Z0-9]{4}$/.test(pdbId)) {
-      setError("Enter a four-character PDB ID, such as 1ABC.");
+    if (pdbId && !/^[A-Z0-9]{4}$/.test(pdbId)) {
+      setError("Leave the public example blank or enter a four-character PDB ID.");
       return;
     }
     try {
@@ -97,7 +101,7 @@ export function InputBundleForm() {
   }
 
   async function createObject() {
-    if (!file || !review?.ready) return;
+    if (submitting || uncertain || !file || !review?.ready) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -112,6 +116,7 @@ export function InputBundleForm() {
       router.push(`/research-objects/${created.research_object_id}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The research object was not created.");
+      setUncertain(submissionMayExist(caught));
       setSubmitting(false);
     }
   }
@@ -159,7 +164,7 @@ export function InputBundleForm() {
             <ReviewFact label="GC content" value={`${(review.gcContent * 100).toFixed(1)}%`} />
             <ReviewFact label="Records" value={review.recordCount.toString()} />
             <ReviewFact label="Ambiguous bases" value={review.ambiguousBases.toLocaleString()} />
-            <ReviewFact label="PDB structure" value={pdbId} />
+            <ReviewFact label="Public structure example" value={pdbId || "None selected"} />
             {targetRegion() && (
               <ReviewFact label="Target window" value={`${targetStart}–${targetEnd}`} />
             )}
@@ -167,11 +172,12 @@ export function InputBundleForm() {
         </div>
 
         {error && <ErrorMessage message={error} />}
+        {uncertain && <p className="px-6 py-3 text-sm"><Link href="/research-objects" className="text-accent underline">Inspect Inputs before creating another record</Link></p>}
         <div className="flex flex-col-reverse gap-3 border-t border-border p-6 sm:flex-row sm:justify-end md:px-8">
           <button
             type="button"
             onClick={() => setStep("details")}
-            disabled={submitting}
+            disabled={submitting || uncertain}
             className="rounded-lg border border-border-strong px-5 py-3 text-sm font-semibold hover:bg-bg-sunken disabled:opacity-50"
           >
             Back to edit
@@ -179,7 +185,7 @@ export function InputBundleForm() {
           <button
             type="button"
             onClick={createObject}
-            disabled={submitting}
+            disabled={submitting || uncertain}
             className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-bg hover:bg-accent-bright disabled:opacity-50"
           >
             {submitting ? "Creating record…" : "Create research object"}
@@ -203,6 +209,11 @@ export function InputBundleForm() {
           <p className="mt-1 text-sm leading-6 text-text-secondary">
             FASTA, FA, or FNA · up to 10 MB
           </p>
+          <button type="button" className="mt-3 rounded-lg border border-border-strong px-4 py-2 text-sm font-semibold text-accent" onClick={() => {
+            setName("Synthetic demo input"); setPdbId(""); setTargetStart(""); setTargetEnd("");
+            void inspectFile(new File([DEMO_FASTA], "synthetic-cbe.fasta", { type: "text/plain" }));
+          }}>Use synthetic example</button>
+          <p className="mt-2 text-xs text-muted">Artificial test sequence for CBE/ABE software demos. Loaded locally; you review before saving.</p>
           <input
             ref={fileInput}
             id="sequence-file"
@@ -279,27 +290,27 @@ export function InputBundleForm() {
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
+            maxLength={200}
             placeholder="Analysis 01"
             className={inputClass}
           />
         </Field>
-        <Field label="PDB structure ID" htmlFor="pdb-id" hint="Four letters or numbers">
+        <Field label="Public PDB example (optional)" htmlFor="pdb-id" hint="Separate from your sequence">
           <input
             id="pdb-id"
             value={pdbId}
             onChange={(event) => setPdbId(event.target.value.toUpperCase())}
-            required
             maxLength={4}
-            placeholder="1ABC"
+            placeholder="Optional, e.g. 4UN3"
             className={inputClass}
           />
         </Field>
         <fieldset className="md:col-span-2">
           <legend className="text-sm font-semibold">
-            Target window <span className="font-normal text-muted">(optional)</span>
+            Target window annotation <span className="font-normal text-muted">(optional)</span>
           </legend>
           <p className="mt-1 text-sm text-text-secondary">
-            Use 1-based inclusive coordinates. Leave both fields empty to review the full sequence.
+            Use 1-based inclusive coordinates. This is stored as metadata; the demo run searches the full saved sequence and does not restrict edits to this window.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <input
@@ -333,6 +344,7 @@ export function InputBundleForm() {
           warning={issue.severity === "warning"}
         />
       ))}
+      {!!review && review.sequenceLength > 5000 && <ErrorMessage warning message="This file can be stored, but demo runs accept at most 5,000 bases. Use a smaller sequence for a run." />}
       {error && <ErrorMessage message={error} />}
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-6 py-5 md:px-8">
         <p className="text-xs leading-5 text-muted">

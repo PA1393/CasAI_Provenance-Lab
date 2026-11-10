@@ -50,7 +50,7 @@ export function DesktopApp() {
       </p>
       <div className="flex gap-4"><button onClick={() => { setProbe((value) => value + 1); router.refresh(); }} className="text-accent">Refresh</button><button aria-expanded={settingsOpen} onClick={() => setSettingsOpen(!settingsOpen)} className="text-accent">Connection settings</button></div>
     </div>
-    {connection === "outdated" && <div role="alert" className="mx-6 mt-4 rounded-lg border border-accent-amber/40 bg-bg-card p-4 text-sm text-accent-amber">This API is missing the merged intake, mapping or planning endpoints. Existing records may contain historical demo fields. New uploads and runs are blocked until the backend is updated and you refresh. A successful connection is not scientific validation.</div>}
+    {connection === "outdated" && <div role="alert" className="mx-6 mt-4 rounded-lg border border-accent-amber/40 bg-bg-card p-4 text-sm text-accent-amber">This backend is missing capabilities required by this app version. Update the API and refresh before submitting inputs or runs. Existing records remain available to inspect. A successful connection is not scientific validation.</div>}
     {settingsOpen && <form className="mx-6 my-4 rounded-lg border border-border bg-bg-card p-5" onSubmit={(event) => {
       event.preventDefault();
       try {
@@ -66,6 +66,6 @@ export function DesktopApp() {
       <p className="mt-3 text-xs text-muted">Only the approved CasAI deployment is allowed. No API keys belong here. Processing needs internet access; use public or synthetic demo inputs only.</p>
       {message && <p role="status" className="mt-3 text-sm text-text-secondary">{message}</p>}
     </form>}
-    {loadedKey === key ? content : <section role="status" className="p-8 text-text-secondary">Loading workspace…</section>}
+    {loadedKey === key ? <div key={key}>{content}</div> : <section role="status" className="p-8 text-text-secondary">Loading workspace…</section>}
   </SiteShell>;
 }

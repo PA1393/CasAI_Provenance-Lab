@@ -47,7 +47,7 @@ export function ResearchObjectSummary({ researchObject }: Props) {
       <div className="rounded-lg border border-border bg-bg-card p-6">
         <dl className="grid gap-5 sm:grid-cols-2">
           <Field label="STATUS" value={status} accent />
-          <Field label="PDB ID" value={pdb_id} mono />
+          <Field label="PUBLIC PDB EXAMPLE" value={pdb_id || "None selected"} mono />
           <Field label="INPUT FILE" value={input_filename} />
           <Field label="FILE TYPE" value={input_file_type} mono />
           <div className="sm:col-span-2">

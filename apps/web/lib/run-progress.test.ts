@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { stageStatus } from "./run-progress";
+import { stageStatus, stageOutcomeLabel } from "./run-progress";
 import type { ProvenanceEvent } from "./api/client";
 
 const event = (event_type: string, stage_status?: ProvenanceEvent["stage_status"]) => ({ event_type, stage_status } as ProvenanceEvent);
+
+test("stopped runs do not leave later steps implying they are still pending", () => {
+  assert.equal(stageOutcomeLabel("pending", "score", "failed"), "Not completed");
+  assert.equal(stageOutcomeLabel("pending", "fields", "failed"), "Optional · not recorded");
+  assert.equal(stageOutcomeLabel("failed", "extract", "failed"), "Stopped");
+});
 
 test("failed and informational events cannot be displayed as completed stages", () => {
   assert.equal(stageStatus("extract", [event("schema_invalid", "failed")], "extract", "failed"), "failed");

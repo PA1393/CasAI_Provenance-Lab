@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.modules.rag.service import _format_context, search_vault
@@ -26,6 +26,12 @@ from app.modules.simulation.nucleotides import IUPAC, pam_matches, revcomp
 _GUIDE_LEN = 20
 _ACGT = set("ACGT")
 _TARGET = {"CBE": "C", "ABE": "A"}  # base each editor converts within the window
+
+
+class AnalysisIssue(ValueError):
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
 
 _INTENT_SYSTEM = (
     "You are a CRISPR base-editing analysis agent for a crop gene-editing lab. "
@@ -52,6 +58,7 @@ class EditSpec(BaseModel):
     organism: str | None = None
     gene: str | None = None
     rationale: str | None = None  # the LLM's grounded, cited explanation
+    rag_sources: list[dict] = Field(default_factory=list)
 
 
 def design_guide(
@@ -130,19 +137,23 @@ def resolve_edit_spec(
     *edit_type* may be passed to override the LLM's choice. Raises ValueError if the
     edit type is unsupported or no usable guide site exists in the sequence.
     """
-    chunks = search_vault(prompt, match_count=match_count)
-    intent = _extract_intent(prompt, chunks)
+    chunks = search_vault(prompt, match_count=match_count, strict=True)
+    if not chunks:
+        raise AnalysisIssue("vault_no_evidence")
+    try:
+        intent = _extract_intent(prompt, chunks)
+    except ValueError as exc:
+        raise AnalysisIssue("intent_invalid") from exc
+    except Exception as exc:
+        raise AnalysisIssue("ai_unavailable") from exc
 
     et = (edit_type or intent.get("edit_type") or "").upper()
     if et not in _TARGET:
-        raise ValueError(
-            f"edit type unclear or unsupported ({et!r}); the request and retrieved context "
-            "did not clearly indicate CBE (C->T) or ABE (A->G) — not guessing"
-        )
+        raise AnalysisIssue("intent_unclear")
 
     design = design_guide(sequence, et)
     if design is None:
-        raise ValueError(f"no candidate {et}-compatible guide site found in the sequence")
+        raise AnalysisIssue("no_compatible_site")
 
     return EditSpec(
         edit_type=et,
@@ -151,6 +162,12 @@ def resolve_edit_spec(
         organism=intent.get("organism"),
         gene=intent.get("gene"),
         rationale=intent.get("rationale"),
+        rag_sources=[{
+            key: chunk.get(key) for key in (
+                "chunk_id", "source_key", "chunk_text", "similarity", "source_title",
+                "source_url", "source_path", "source_type",
+            )
+        } for chunk in chunks],
     )
 
 

@@ -1,6 +1,10 @@
+import { failureStage } from "../../lib/run-failure";
+import type { RunFailure } from "../../lib/api/client";
 type Props = {
   status: string;
   overview?: boolean;
+  stage?: string | null;
+  failure?: RunFailure | null;
 };
 
 const statusStyles: Record<string, string> = {
@@ -12,8 +16,8 @@ const statusStyles: Record<string, string> = {
   failed: "border-accent-red/60 text-accent-red",
 };
 
-export function RunStatusBadge({ status, overview = false }: Props) {
-  if (overview && status === "failed") return <span className="rounded-full border border-border px-3 py-1 text-xs text-text-secondary">Review run</span>;
+export function RunStatusBadge({ status, stage, failure }: Props) {
+  if (status === "failed") return <span className="rounded-full border border-accent-amber/40 px-3 py-1 text-xs text-text-secondary">{stage || failure ? `Stopped at ${failureStage(failure?.stage ?? stage, failure?.code)}` : "Stopped — open run details"}</span>;
   const style = statusStyles[status] ?? "border-border text-muted";
   return (
     <span

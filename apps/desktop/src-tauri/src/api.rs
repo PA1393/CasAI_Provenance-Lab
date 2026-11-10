@@ -59,6 +59,11 @@ fn request_allowed(method: &str, path: &str, body: Option<&str>) -> bool {
     let parts: Vec<_> = path.split('/').collect();
     match (method, parts.as_slice()) {
         ("GET", ["", "health" | "openapi.json"]) => true,
+        ("GET", ["", "api", "v1", "demo", "capabilities"]) => true,
+        ("POST", ["", "api", "v1", "auth", "login" | "logout"]) => true,
+        ("GET", ["", "api", "v1", "auth", "me"]) => true,
+        ("GET" | "POST", ["", "api", "v1", "folders"]) => true,
+        ("POST", ["", "api", "v1", "folders", "place"]) => true,
         ("GET" | "POST", ["", "api", "v1", "research-objects" | "runs"]) => true,
         ("GET", ["", "api", "v1", "research-objects" | "runs", id]) => valid_id(id),
         ("GET", ["", "api", "v1", "research-objects", id, "runs"]) => valid_id(id),
@@ -102,6 +107,7 @@ pub async fn api_request(
     method: String,
     path: String,
     body: Option<String>,
+    access_token: Option<String>,
 ) -> Result<ApiResponse, String> {
     let source = window.url().map_err(|_| "Cannot verify caller")?;
     if !app_navigation_allowed(source.scheme(), source.host_str(), source.port())
@@ -123,12 +129,23 @@ pub async fn api_request(
             format!("{API_ORIGIN}{path}"),
         )
         .timeout(Duration::from_secs(timeout));
+    if let Some(token) = access_token {
+        if token.is_empty()
+            || token.len() > 8192
+            || !token
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+        {
+            return Err("Invalid session token".into());
+        }
+        request = request.bearer_auth(token);
+    }
     if let Some(content) = body {
         request = request
             .header("content-type", "application/json")
             .body(content);
     }
-    // Never forward browser cookies, API keys, arbitrary headers or redirects.
+    // Only an explicit user bearer token; no cookies, keys, arbitrary headers or redirects.
     let mut response = request.send().await.map_err(|error| {
         if error.is_timeout() {
             "Backend request timed out; a submitted run may still have completed. Check Runs before resubmitting."
@@ -167,6 +184,7 @@ mod tests {
         for path in [
             "/health",
             "/openapi.json",
+            "/api/v1/demo/capabilities",
             "/api/v1/runs",
             "/api/v1/research-objects",
             "/api/v1/runs/demo-1/results",

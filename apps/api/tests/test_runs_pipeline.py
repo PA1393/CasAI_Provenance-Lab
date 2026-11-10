@@ -88,7 +88,7 @@ def test_unverifiable_confirmed_source_blocks_before_run_insert(monkeypatch, tmp
     sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE,
                            "confirmed_version_id": "sha256:" + "a" * 64,
                            "confirmed_record_id": "record"})
-    monkeypatch.setattr(service, "LocalWorkspace", lambda _: LocalWorkspace(tmp_path / "empty"))
+    monkeypatch.setattr(service, "get_intake_workspace", lambda: LocalWorkspace(tmp_path / "empty"))
     with pytest.raises(service.ConfirmedSourceError, match="no run was submitted"):
         service.create_run("ro-1", "CBE edit")
     assert sb.inserts["runs"] == []
@@ -100,7 +100,7 @@ def test_confirmed_source_binding_is_recorded_in_pipeline_provenance(monkeypatch
           "confirmed_version_id": "sha256:" + "a" * 64, "confirmed_record_id": "record"}
     sb = _wire(monkeypatch, ro, spec=spec, problems=[])
     seen = []
-    monkeypatch.setattr(service, "LocalWorkspace", lambda _: object())
+    monkeypatch.setattr(service, "get_intake_workspace", lambda: object())
     monkeypatch.setattr(service, "validate_run_source", lambda row, _: seen.append(row))
     service.create_run("ro-1", "CBE edit")
     event = next(event for event in sb.events if event["event_type"] == "input_validated")
@@ -122,6 +122,83 @@ def _wire(monkeypatch, ro, *, spec=None, problems=None):
 
 def _stages(sb):
     return [(e["stage"], e["event_type"]) for e in sb.events]
+
+
+@pytest.mark.parametrize("mode,index,replacement", [("demo_cbe", 7, "T"), ("demo_abe", 6, "G")])
+def test_rule_based_demo_runs_real_engine_without_ai(monkeypatch, mode, index, replacement):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Rule-based mode must never call AI/retrieval")
+
+    outcomes = []
+    for label in ["Software review", "Do not interpret this as a gene objective"]:
+        sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE})
+        monkeypatch.setattr(service, "resolve_edit_spec", forbidden)
+        result = service.create_run("ro-1", label, mode)
+        assert result["status"] == "completed"
+        assert result["guide_rna"] == _GUIDE
+        outcome = sb.inserts["results"][0]
+        assert outcome["edited_sequence"] == _SEQUENCE[:index] + replacement + _SEQUENCE[index + 1:]
+        assert "No AI or retrieval" in outcome["notes"]
+        assert sb.events[0]["payload"]["execution_mode"] == mode
+        assert sb.events[0]["payload"]["target_region_policy"] == "metadata_only_full_sequence"
+        intent = next(event for event in sb.events if event["event_type"] == "intent_resolved")
+        assert intent["payload"]["pam"] == "NGG" and intent["payload"]["window"] == [4, 8]
+        outcomes.append(outcome["edited_sequence"])
+    assert outcomes[0] == outcomes[1]
+
+
+@pytest.mark.parametrize("mode,positions,base", [("demo_cbe", [8, 10], "T"),
+                                               ("demo_abe", [9, 11, 12], "G")])
+def test_distributed_demo_fixture_has_known_edits(monkeypatch, mode, positions, base):
+    from pathlib import Path
+
+    from app.modules.research_objects.fasta import parse_fasta
+
+    fixture = Path(__file__).resolve().parents[3] / "test-fixtures/desktop-demo/synthetic-cbe.fasta"
+    sequence = parse_fasta(fixture.read_text())["sequence"]
+    sb = _wire(monkeypatch, {"research_object_id": "fixture", "sequence": sequence})
+    result = service.create_run("fixture", "Distributed synthetic fixture", mode)
+    assert result["status"] == "completed"
+    expected = list(sequence)
+    for position in positions:
+        expected[position - 1] = base
+    assert sb.inserts["results"][0]["edited_sequence"] == "".join(expected)
+
+
+def test_demo_no_site_reports_failure_without_fabricated_results(monkeypatch):
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": "AT" * 20})
+    result = service.create_run("ro-1", "No PAM", "demo_cbe")
+    assert result["status"] == "failed"
+    assert not sb.inserts["results"]
+    assert "no compatible" in sb.events[-1]["message"].lower()
+    assert result["failure"]["stage"] == "extract"
+    assert result["failure"]["code"] == "no_compatible_site"
+
+
+@pytest.mark.parametrize("sequence,mode", [("A" * 5001, "assisted"),
+                                          ("ACNT", "demo_cbe"), ("", "demo_abe")])
+def test_demo_constraints_reject_before_creating_a_run(monkeypatch, sequence, mode):
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": sequence})
+    with pytest.raises(service.RunInputError):
+        service.create_run("ro-1", "Invalid input", mode)
+    assert not sb.inserts["runs"]
+
+
+def test_run_request_bounds_and_demo_capabilities():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    client = TestClient(app)
+    capabilities = client.get("/api/v1/demo/capabilities").json()
+    assert capabilities["max_sequence_bases"] == 5000
+    assert capabilities["scientifically_validated"] is False
+    for changes in [{"execution_mode": "invented"}, {"prompt": " "},
+                    {"prompt": "x" * 2001}, {"unexpected": "value"}]:
+        response = client.post("/api/v1/runs", json={
+            "research_object_id": "demo-input", "prompt": "Demo", **changes,
+        })
+        assert response.status_code == 422
 
 
 def test_happy_path_runs_real_chain_and_completes(monkeypatch) -> None:
@@ -228,3 +305,37 @@ def test_unexpected_error_marks_run_failed_and_reraises(monkeypatch) -> None:
     assert sb.run_row["status"] == "failed"
     assert sb.run_row["current_stage"] == "simulate"  # where _advance last landed
     assert sb.inserts["results"] == []
+    assert sb.run_row["failure"]["stage"] == "simulate"
+    assert sb.run_row["failure"]["code"] == "unexpected_error"
+    assert "unexpected engine bug" not in sb.run_row["failure"]["message"]
+
+
+@pytest.mark.parametrize("code", [
+    "vault_no_evidence", "vault_unavailable", "vault_not_configured", "intent_unclear",
+    "ai_unavailable", "intent_invalid", "no_compatible_site",
+])
+def test_analysis_failures_record_distinct_safe_reasons(monkeypatch, code):
+    from app.modules.simulation.spec import AnalysisIssue
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE})
+    def blocked(*args):
+        raise AnalysisIssue(code)
+    monkeypatch.setattr(service, "resolve_edit_spec", blocked)
+    run = service.create_run("ro-1", "Explicit test objective")
+    assert run["status"] == "failed"
+    assert run["failure"]["code"] == code
+    assert run["failure"]["next_step"]
+    assert sb.events[-1]["payload"]["failure"] == run["failure"]
+    assert not sb.inserts["results"]
+
+
+def test_no_edit_is_not_recorded_as_a_successful_edit(monkeypatch):
+    candidate = EditSpec(edit_type="CBE", guide_rna=_GUIDE, strand="+")
+    sb = _wire(monkeypatch, {"research_object_id": "ro-1", "sequence": _SEQUENCE},
+               spec=candidate, problems=[])
+    monkeypatch.setattr(service, "apply_base_edit", lambda *a, **kw: {
+        "edited": False, "reason": "no editable base",
+    })
+    run = service.create_run("ro-1", "No edit")
+    assert run["failure"]["stage"] == "simulate"
+    assert run["failure"]["code"] == "simulation_no_edit"
+    assert not sb.inserts["results"]

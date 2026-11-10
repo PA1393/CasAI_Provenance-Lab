@@ -92,7 +92,17 @@ installer or a physical simulation engine.
 
 ## Product delivery status
 
-The web app opens into a research workbench with shared Inputs/Runs navigation
+The active web/desktop demo does not require login. Set ACCESS_MODE=demo (the
+default) and apply migration 009 after the core migrations. Its separate empty
+demo tables do not import historical or personal records. This is a shared
+public/synthetic-data workspace, not private per-user storage.
+Login remains implemented but deferred; ACCESS_MODE=accounts and migration 008
+are for a later reviewed release. See [deferred account setup](docs/personal-workspace-setup.txt)
+and [current demo release checklist](docs/demo-release-checklist.txt).
+The workbench includes Add research, personal folders and workflow-completion
+statistics (not biological success rates).
+
+The web app opens into a research workbench with consistent Inputs/Runs navigation
 and a persistent light/dark appearance switch. Scientific summaries label
 heuristic scores and explanatory scenes explicitly.
 

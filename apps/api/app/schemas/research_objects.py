@@ -1,13 +1,14 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ResearchObjectCreate(BaseModel):
-    name: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=200)
     input_filename: str
     input_file_type: str
-    pdb_id: str
+    pdb_id: str = Field(default="", pattern=r"^(?:[A-Za-z0-9]{4})?$")
     target_region: list[Annotated[int, Field(strict=True, ge=1)]] | None = Field(
         default=None, min_length=2, max_length=2
     )
@@ -24,6 +25,7 @@ class ResearchObjectCreate(BaseModel):
 
 
 class ResearchObject(BaseModel):
+    folder_id: str | None = None
     research_object_id: str
     created_at: str
     name: str

@@ -10,6 +10,12 @@ from app.db import get_supabase
 logger = logging.getLogger(__name__)
 
 
+class VaultSearchError(ValueError):
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
+
+
 def embed_query(text: str) -> list[float] | None:
     if not settings.openai_api_key:
         logger.warning("OPENAI_API_KEY not set — RAG search skipped")
@@ -41,16 +47,21 @@ def search_vault(
     match_count: int = 3,
     match_threshold: float = settings.rag_match_threshold,
     vaults: list[str] | None = None,
+    strict: bool = False,
 ) -> list[dict]:
+    if strict and not settings.openai_api_key:
+        raise VaultSearchError("vault_not_configured")
     embedding = embed_query(query)
     if embedding is None:
+        if strict:
+            raise VaultSearchError("vault_unavailable")
         return []
 
     if vaults is None:
         vaults = select_vaults(query)
 
-    supabase = get_supabase()
     try:
+        supabase = get_supabase()
         response = supabase.rpc(
             "match_vault_chunks",
             {
@@ -62,7 +73,9 @@ def search_vault(
         ).execute()
         return response.data or []
     except Exception as exc:
-        logger.warning("match_vault_chunks RPC failed: %s", exc)
+        logger.warning("match_vault_chunks RPC failed (%s)", type(exc).__name__)
+        if strict:
+            raise VaultSearchError("vault_unavailable") from exc
         return []
 
 

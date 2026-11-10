@@ -4,19 +4,36 @@ import logging
 import time
 from datetime import UTC, datetime
 
-from app.core.config import settings
+from app.api.dependencies import get_intake_workspace
 from app.db import get_supabase
 from app.modules.information_processor.handoff import validate_run_source
-from app.modules.information_processor.workspace import LocalWorkspace, WorkspaceError
+from app.modules.information_processor.workspace import WorkspaceError
 from app.modules.provenance.service import emit
+from app.modules.rag.service import VaultSearchError
+from app.modules.runs.issues import RunIssue, run_issue
 from app.modules.simulation.engine import apply_base_edit
 from app.modules.simulation.scoring import off_target_score, on_target_score
-from app.modules.simulation.spec import EditSpec, resolve_edit_spec, validate_edit_spec
+from app.modules.simulation.spec import (
+    AnalysisIssue,
+    EditSpec,
+    design_guide,
+    resolve_edit_spec,
+    validate_edit_spec,
+)
 
 logger = logging.getLogger(__name__)
 
 # Base each editor converts, for a human-readable edit summary.
 _EDIT_CHANGE = {"CBE": ("C", "T"), "ABE": ("A", "G")}
+MAX_RUN_BASES = 5_000
+
+
+class RunInputError(ValueError):
+    """A bounded demo run cannot be prepared from this request."""
+
+
+class RunInputNotFoundError(ValueError):
+    """No research object exists for this run request."""
 
 
 class ConfirmedSourceError(ValueError):
@@ -59,12 +76,13 @@ class _PipelineHalt(Exception):
     Carries the stage that failed so create_run() can record it on the run.
     """
 
-    def __init__(self, stage: str) -> None:
+    def __init__(self, stage: str, issue: RunIssue) -> None:
         self.stage = stage
+        self.issue = issue
         super().__init__(stage)
 
 
-def create_run(research_object_id: str, prompt: str) -> dict:
+def create_run(research_object_id: str, prompt: str, execution_mode: str = "assisted") -> dict:
     """Execute the real base-edit pipeline for a research object + prompt.
 
     Runs the analysis agent -> validation gate -> engine -> scoring chain,
@@ -72,6 +90,8 @@ def create_run(research_object_id: str, prompt: str) -> dict:
     real result. A stage failure (no sequence, unresolved intent, invalid
     spec) emits a failure event and marks the run `failed` rather than raising.
     """
+    if execution_mode not in {"assisted", "demo_cbe", "demo_abe"}:
+        raise RunInputError("Choose a supported execution mode")
     client = get_supabase()
     now = datetime.now(UTC)
 
@@ -83,10 +103,17 @@ def create_run(research_object_id: str, prompt: str) -> dict:
         .execute()
     )
     ro = ro_response.data or {}
+    if not ro:
+        raise RunInputNotFoundError("Research input not found")
+    sequence = (ro.get("sequence") or "").upper()
+    if len(sequence) > MAX_RUN_BASES:
+        raise RunInputError("Demo runs accept at most 5,000 bases; prepare a smaller input")
+    if execution_mode != "assisted" and (not sequence or set(sequence) - set("ACGT")):
+        raise RunInputError("Rule-based demo runs require unambiguous A/C/G/T DNA")
 
     if ro.get("confirmed_version_id") or ro.get("confirmed_record_id"):
         try:
-            validate_run_source(ro, LocalWorkspace(settings.intake_workspace_root))
+            validate_run_source(ro, get_intake_workspace())
         except (ValueError, WorkspaceError) as exc:
             raise ConfirmedSourceError(
                 "Confirmed source is unavailable or changed; no run was submitted"
@@ -109,9 +136,9 @@ def create_run(research_object_id: str, prompt: str) -> dict:
     run_id = run["run_id"]
 
     try:
-        _run_pipeline(client, run_id, ro, prompt)
+        _run_pipeline(client, run_id, ro, prompt, execution_mode)
     except _PipelineHalt as halt:
-        _finish(client, run_id, status="failed", stage=halt.stage)
+        _finish(client, run_id, status="failed", stage=halt.stage, failure=halt.issue)
     except Exception:
         # Anything that isn't a handled _PipelineHalt is unexpected (LLM/network
         # hiccup, a DB write failure mid-pipeline, ...). The run must not be left
@@ -133,7 +160,10 @@ def create_run(research_object_id: str, prompt: str) -> dict:
                 .execute()
             )
             stage = (stalled.data or {}).get("current_stage") or "input"
-            _finish(client, run_id, status="failed", stage=stage)
+            issue = run_issue(stage, "unexpected_error")
+            emit(run_id, stage, "stage_failed", issue.message,
+                 payload={"failure": issue.model_dump()})
+            _finish(client, run_id, status="failed", stage=stage, failure=issue)
         except Exception as cleanup_exc:
             logger.warning(
                 "failed to mark run %s failed after an unexpected error: %s",
@@ -150,7 +180,9 @@ def create_run(research_object_id: str, prompt: str) -> dict:
     return updated.data
 
 
-def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
+def _run_pipeline(
+    client, run_id: str, ro: dict, prompt: str, execution_mode: str = "assisted",
+) -> None:
     # ── input ──────────────────────────────────────────────────────────────
     _advance(client, run_id, "input")
     sequence = (ro.get("sequence") or "").upper()
@@ -170,6 +202,9 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
         payload={
             "research_object_id": ro.get("research_object_id"),
             "sequence_length": len(sequence),
+            "execution_mode": execution_mode,
+            "target_region_policy": "metadata_only_full_sequence",
+            "target_region_annotation": ro.get("target_region"),
             **({"confirmed_version_id": ro["confirmed_version_id"],
                 "confirmed_record_id": ro["confirmed_record_id"]}
                if ro.get("confirmed_version_id") else {}),
@@ -180,8 +215,25 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
     _advance(client, run_id, "extract")
     started = time.perf_counter()
     try:
-        spec = resolve_edit_spec(prompt, sequence)
+        if execution_mode == "assisted":
+            spec = resolve_edit_spec(prompt, sequence)
+        else:
+            edit_type = "CBE" if execution_mode == "demo_cbe" else "ABE"
+            design = design_guide(sequence, edit_type)
+            if design is None:
+                raise AnalysisIssue("no_compatible_site")
+            spec = EditSpec(
+                edit_type=edit_type, **design,
+                rationale=("Explicit rule-based demo: first compatible NGG site, guide positions "
+                           "4–8. The run label is not interpreted as a biological objective. "
+                           "No AI or retrieval was used; scores remain unvalidated heuristics."),
+            )
     except Exception as exc:
+        logger.warning("Run %s analysis failed (%s)", run_id, type(exc).__name__)
+        issue = run_issue(
+            "extract", exc.code if isinstance(exc, (AnalysisIssue, VaultSearchError))
+            else "analysis_unavailable",
+        )
         # Broad on purpose: resolve_edit_spec raises ValueError for a missing key,
         # bad JSON, or no guide site — but an OpenAI network/rate-limit error is a
         # different exception type entirely. Either way it belongs to "extract",
@@ -191,15 +243,17 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
             run_id,
             "extract",
             "analysis_failed",
-            f"Analysis agent could not resolve an edit spec: {exc}",
+            issue.message,
+            payload={"failure": issue.model_dump()},
             duration_ms=_ms(started),
         )
     emit(
         run_id,
         "extract",
         "intent_resolved",
-        "Analysis agent resolved a candidate edit spec",
-        payload=_spec_payload(spec),
+        ("Analysis agent resolved a candidate edit spec" if execution_mode == "assisted"
+         else "Explicit rule-based demo selected the first compatible edit site"),
+        payload={**_spec_payload(spec), "execution_mode": execution_mode},
         duration_ms=_ms(started),
     )
 
@@ -219,6 +273,7 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
         "EditSpec passed the validation gate",
         payload={"problems": []},
     )
+    client.table("runs").update({"guide_rna": spec.guide_rna}).eq("run_id", run_id).execute()
 
     # ── simulate: deterministic base-edit engine ───────────────────────────
     _advance(client, run_id, "simulate")
@@ -226,6 +281,9 @@ def _run_pipeline(client, run_id: str, ro: dict, prompt: str) -> None:
     edit = apply_base_edit(
         sequence, spec.guide_rna, spec.edit_type, window=spec.window, pam=spec.pam
     )
+    if not edit["edited"]:
+        _halt(run_id, "simulate", "simulation_no_edit",
+              run_issue("simulate", "simulation_no_edit").message)
     emit(
         run_id,
         "simulate",
@@ -288,8 +346,17 @@ def _halt(
     duration_ms: int | None = None,
 ) -> None:
     """Emit a failure event for *stage*, then stop the pipeline."""
+    payload = dict(payload or {})
+    issue = RunIssue.model_validate(payload["failure"]) if "failure" in payload else run_issue(
+        stage, event_type,
+    )
+    if event_type == "schema_invalid":
+        issue.details = [
+            str(problem)[:200] for problem in payload.get("problems", [])[:10]
+        ]
+    payload["failure"] = issue.model_dump()
     emit(run_id, stage, event_type, message, payload=payload, duration_ms=duration_ms)
-    raise _PipelineHalt(stage)
+    raise _PipelineHalt(stage, issue)
 
 
 def _advance(client, run_id: str, stage: str) -> None:
@@ -297,12 +364,15 @@ def _advance(client, run_id: str, stage: str) -> None:
     client.table("runs").update({"current_stage": stage}).eq("run_id", run_id).execute()
 
 
-def _finish(client, run_id: str, status: str, stage: str) -> None:
+def _finish(
+    client, run_id: str, status: str, stage: str, failure: RunIssue | None = None,
+) -> None:
     client.table("runs").update(
         {
             "status": status,
             "current_stage": stage,
             "completed_at": datetime.now(UTC).isoformat(),
+            "failure": failure.model_dump() if failure else None,
         }
     ).eq("run_id", run_id).execute()
 
@@ -316,9 +386,12 @@ def _spec_payload(spec: EditSpec) -> dict:
         "edit_type": spec.edit_type,
         "guide_rna": spec.guide_rna,
         "strand": spec.strand,
+        "window": list(spec.window),
+        "pam": spec.pam,
         "organism": spec.organism,
         "gene": spec.gene,
         "rationale": spec.rationale,
+        "rag_sources": spec.rag_sources,
     }
 
 

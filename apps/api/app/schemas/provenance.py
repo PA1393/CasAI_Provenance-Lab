@@ -18,6 +18,8 @@ EVENT_STAGE_STATUS: dict[str, StageStatus] = {
     "results_packaged": "completed",
     "scientific_tool_failed": "failed",
     "scientific_tool_completed": "completed",
+    "stage_failed": "failed",
+    "simulation_no_edit": "failed",
 }
 
 

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { ResearchObject, Result, Run } from "@/lib/api/client";
 import { heuristicScore, summarizeResults } from "../../lib/result-summary";
 import { RunStatusBadge } from "./run-status-badge";
+import { failureStage, runFailure } from "../../lib/run-failure";
 
 type Props = {
   results: Result[];
@@ -15,11 +16,12 @@ type Props = {
 
 export function RunSummary({ results, run, researchObject, unavailable, onProvenance, onInteraction, children }: Props) {
   const summary = summarizeResults(results);
+  const issue = runFailure(run);
   return <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
     <div className="min-w-0 space-y-5">
       <section className="rounded-xl border border-border bg-bg-card p-5">
         <h2 className="font-serif-display text-2xl">Run summary</h2>
-        <p className="mt-3 text-sm leading-6 text-text-secondary">{unavailable ? "The run's stored results could not be retrieved." : results.length ? results.map(result => result.edit_summary || "A result was stored without an edit summary.").join(" ") : run?.status === "failed" ? "This run stopped before producing a stored result. Open Provenance for the recorded reason." : run?.status === "completed" ? "The run is marked completed, but no result summary is stored. Review Provenance before relying on it." : "A summary will be available after the run records a result."}</p>
+        <p className="mt-3 text-sm leading-6 text-text-secondary">{unavailable ? "The run's stored results could not be retrieved." : issue ? `Stopped during ${failureStage(issue.stage, issue.code)}: ${issue.message}` : results.length ? results.map(result => result.edit_summary || "A result was stored without an edit summary.").join(" ") : run?.status === "completed" ? "The run is marked completed, but no result summary is stored. Review Provenance before relying on it." : "A summary will be available after the run records a result."}</p>
         <p className="mt-3 text-xs text-muted">Generated deterministically from recorded results, not an additional AI interpretation.</p>
       </section>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -27,6 +29,15 @@ export function RunSummary({ results, run, researchObject, unavailable, onProven
         <SummaryMetric label="Off-target heuristic" value={unavailable ? "—" : summary.offTarget} detail="First recorded design; not measured risk" />
         <SummaryMetric label="Recorded designs" value={unavailable ? "—" : String(summary.count)} detail="Stored results, not a count passing filters" />
       </div>
+      <details className="rounded-xl border border-border bg-bg-card p-5">
+        <summary className="cursor-pointer text-sm font-semibold text-accent">How to read these heuristic scores</summary>
+        <div className="mt-3 space-y-3 text-sm leading-6 text-text-secondary">
+          <p>These values are normalized computational heuristics displayed on a 0–100 scale, not percentages of successful editing. A zero score does not mean the software run failed.</p>
+          <p>On-target: the current scorer uses guide GC content (favoring 40–60%) and penalizes long runs of the same base. A long homopolymer can reduce this score to zero even when a sequence edit was computed.</p>
+          <p>Off-target: the current scorer counts near-matches with 1–3 mismatches on both strands of the supplied sequence. It ignores PAM requirements and excludes exact matches. It is not a genome-wide safety assessment; a low score does not establish safety.</p>
+          <p>See Provenance for recorded processing. Do not compare methods or make experimental decisions using these unvalidated scores alone.</p>
+        </div>
+      </details>
       <section className="overflow-hidden rounded-xl border border-border bg-bg-card">
         <h2 className="px-5 py-5 font-serif-display text-2xl">Recorded designs</h2>
         <p className="px-5 pb-4 text-xs text-muted">Shown in backend order. No ranking or recommendation is inferred.</p>
@@ -61,8 +72,8 @@ export function RunSummary({ results, run, researchObject, unavailable, onProven
         <dl className="mt-5 divide-y divide-border text-sm">
           <RecordFact label="Input hash" value={researchObject?.ro_hash} mono />
           <RecordFact label="Run ID" value={run?.run_id} mono />
-          <RecordFact label="Completed time" value={run?.completed_at ?? undefined} />
-          <div className="flex flex-wrap items-center justify-between gap-3 py-4"><dt className="text-text-secondary">Status</dt><dd>{run ? <RunStatusBadge status={run.status} /> : "—"}</dd></div>
+          <RecordFact label="Finished time" value={run?.completed_at ?? undefined} />
+          <div className="flex flex-wrap items-center justify-between gap-3 py-4"><dt className="text-text-secondary">Status</dt><dd>{run ? <RunStatusBadge status={run.status} stage={run.current_stage} failure={run.failure} /> : "—"}</dd></div>
         </dl>
         <button type="button" onClick={onProvenance} className="mt-4 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-bg hover:bg-accent-bright">View provenance</button>
       </section>
